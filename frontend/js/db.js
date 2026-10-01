@@ -95,9 +95,12 @@ const DB = {
         .from('clientes').update(payload).eq('id', cliente.id).select().single();
       if (error) _mostrarErrorSupabase('guardar el cliente', error);
       return mapCliente(data);
-    } else {
+        } else {
       const { data, error } = await supabaseClient
-        .from('clientes').insert(payload).select().single();
+        .rpc('crear_cliente', { datos: payload });
+      if (error) _mostrarErrorSupabase('crear el cliente', error);
+      return mapCliente(data);
+    }
       if (error) _mostrarErrorSupabase('crear el cliente', error);
       return mapCliente(data);
     }
