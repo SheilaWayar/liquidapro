@@ -1,17 +1,16 @@
 /* =========================================================
    db.js
-   Capa de datos de la app. Antes usaba localStorage; ahora todo
-   se guarda en Supabase (Postgres en la nube), respetando Row
-   Level Security: cada usuario logueado solo ve sus propios
+   Capa de datos de la app. Todo se guarda en Supabase
+   (Postgres en la nube), respetando Row Level Security:
+   cada usuario logueado solo ve sus propios
    clientes/legajos/liquidaciones.
 
-   OJO: todas las funciones ahora son ASYNC (devuelven promesas),
+   Todas las funciones son ASYNC (devuelven promesas),
    porque hablan por red con la base. Por eso en app.js se usan
    con `await`.
 
    La configuración de aportes/contribuciones (%) sigue guardándose
-   en localStorage: no es un dato sensible ni depende del cliente,
-   así que no hacía falta llevarla a la nube.
+   en localStorage: no es un dato sensible ni depende del cliente.
 ========================================================= */
 
 const CONFIG_DEFAULT = {
@@ -95,12 +94,9 @@ const DB = {
         .from('clientes').update(payload).eq('id', cliente.id).select().single();
       if (error) _mostrarErrorSupabase('guardar el cliente', error);
       return mapCliente(data);
-        } else {
+    } else {
       const { data, error } = await supabaseClient
         .rpc('crear_cliente', { datos: payload });
-      if (error) _mostrarErrorSupabase('crear el cliente', error);
-      return mapCliente(data);
-    }
       if (error) _mostrarErrorSupabase('crear el cliente', error);
       return mapCliente(data);
     }
@@ -209,9 +205,7 @@ const DB = {
     if (error) _mostrarErrorSupabase('anular la liquidación', error);
   },
 
-  /* ---------------- CONFIGURACIÓN (aportes/contribuciones) ----------------
-     Se mantiene en localStorage: no es un dato sensible ni depende del
-     cliente logueado, así que no hacía falta llevarla a la nube. */
+  /* ---------------- CONFIGURACIÓN (aportes/contribuciones) ---------------- */
   getConfig() {
     try {
       const raw = localStorage.getItem('lp_config');
