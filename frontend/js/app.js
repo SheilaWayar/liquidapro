@@ -776,6 +776,8 @@ async function verReciboGuardado(id) {
     const liqs = await DB.getLiquidaciones();
     const liq = liqs.find(l => l.id === id);
     if (!liq) return;
+    // Los recibos metalúrgicos (módulo independiente) se muestran en su propia pantalla
+    if (liq.resultado && liq.resultado.modoUOM) { await Metalurgica.verRecibo(id); return; }
     const [cliente, legajo] = await Promise.all([DB.getCliente(liq.clienteId), DB.getLegajo(liq.legajoId)]);
 
     document.querySelectorAll('.menu-item').forEach(b => b.classList.remove('active'));

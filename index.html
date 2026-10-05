@@ -6,6 +6,17 @@
 <title>LiquidaPro | Liquidación de Sueldos Argentina 2026</title>
 <link rel="stylesheet" href="frontend/css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.met-duplicado { display: none; }
+@media print {
+  .met-duplicado { display: block !important; break-before: page; page-break-before: always; }
+  #view-metalurgica .recibo { page-break-inside: avoid; break-inside: avoid; }
+  .sidebar, #view-metalurgica .no-print, #view-metalurgica .view-header,
+  #view-metalurgica .card:not(#metResultadoCard) { display: none !important; }
+  #metResultadoCard { box-shadow: none !important; border: none !important; }
+  .content { margin: 0 !important; padding: 0 !important; }
+}
+</style>
 </head>
 <body>
 
@@ -43,6 +54,7 @@
       <button class="menu-item" data-view="clientes">🏢 Clientes</button>
       <button class="menu-item" data-view="legajos">🧑‍💼 Legajos</button>
       <button class="menu-item" data-view="liquidaciones">🧾 Liquidaciones</button>
+      <button class="menu-item" data-view="metalurgica">🔩 Metalúrgica (UOM)</button>
       <button class="menu-item" data-view="configuracion">⚙️ Configuración</button>
     </nav>
     <div class="sidebar-footer">
@@ -158,10 +170,9 @@
           <div>
             <label>Tipo de liquidación</label>
             <select id="liqTipo" class="input">
-              <option value="general">Mensual / General</option>
+              <option value="general">Mensual</option>
               <option value="rural">Rural</option>
               <option value="gastronomico">Gastronómico</option>
-              <option value="metalurgica">Metalúrgica</option>
             </select>
           </div>
           <div id="wrapQuincena" style="display:none">
@@ -285,6 +296,92 @@
       </div>
     </section>
 
+    <!-- ===================== METALÚRGICA (módulo independiente) ===================== -->
+    <section id="view-metalurgica" class="view">
+      <header class="view-header">
+        <h2>Liquidación Metalúrgica (UOM)</h2>
+        <p>Recibo quincenal por hora — módulo independiente</p>
+      </header>
+
+      <div class="card no-print">
+        <h3>1. Cliente, empleado y quincena</h3>
+        <div class="filtros">
+          <select id="metCliente" class="input"><option value="">Seleccionar cliente...</option></select>
+          <select id="metLegajo" class="input" disabled><option value="">Seleccionar legajo...</option></select>
+          <select id="metQuincena" class="input">
+            <option value="1">Primera quincena</option>
+            <option value="2">Segunda quincena</option>
+          </select>
+          <input type="month" id="metPeriodo" class="input">
+          <input type="date" id="metFechaPago" class="input" title="Fecha de pago / día de liquidación (se usa para la antigüedad)">
+        </div>
+      </div>
+
+      <div class="card no-print" id="metFormCard" style="display:none">
+        <h3>2. Datos de la liquidación</h3>
+        <div class="grid-3">
+          <div>
+            <label>Horas trabajadas en la quincena</label>
+            <input type="number" id="metHoras" class="input" step="0.01" value="0">
+          </div>
+          <div>
+            <label>Básico por hora ($)</label>
+            <input type="number" id="metValorHora" class="input" step="0.01">
+          </div>
+          <div>
+            <label>IMGR — total del índice ($)</label>
+            <input type="number" id="metImgr" class="input" step="0.01" value="0">
+          </div>
+          <div>
+            <label>Seguro UOM — retención ($)</label>
+            <input type="number" id="metSeguroUom" class="input" step="0.01" value="0">
+          </div>
+          <div>
+            <label>Riesgo de trabajo - FFEP ($)</label>
+            <input type="number" id="metFfep" class="input" step="0.01" value="0">
+          </div>
+          <div>
+            <label>Seguro de vida y sepelio ($)</label>
+            <input type="number" id="metSeguroVida" class="input" step="0.01" value="0">
+          </div>
+          <div>
+            <label>Lugar de pago (sale en el recibo)</label>
+            <input type="text" id="metLugar" class="input" placeholder="Ej: Salta">
+          </div>
+        </div>
+        <h4>Conceptos no remunerativos</h4>
+        <p class="ayuda-texto">Cargá el nombre del concepto y su importe (podés agregar los que necesites).</p>
+        <div id="metListaNoRem" class="lista-dinamica"></div>
+        <button class="btn-secondary btn-sm" id="btnMetAddNoRem">+ Agregar concepto no remunerativo</button>
+
+        <div class="card sub-card" id="metAntigPreview" style="display:none">
+          <h4>Antigüedad e IMGR (automáticos)</h4>
+          <p id="metAntigTexto" class="ayuda-texto"></p>
+        </div>
+        <div class="acciones-liq">
+          <button class="btn-primary" id="btnMetCalcular">Calcular liquidación →</button>
+        </div>
+      </div>
+
+      <div class="card" id="metResultadoCard" style="display:none">
+        <h3 class="no-print">3. Recibo de sueldo</h3>
+        <div id="metReciboContainer"></div>
+        <div class="acciones-liq no-print">
+          <button class="btn-secondary" id="btnMetImprimir">🖨️ Imprimir / Guardar PDF</button>
+          <button class="btn-primary" id="btnMetGuardar">💾 Guardar liquidación</button>
+        </div>
+      </div>
+
+      <div class="card no-print">
+        <h3>Historial de liquidaciones metalúrgicas</h3>
+        <table class="data-table">
+          <thead><tr><th>Quincena</th><th>Cliente</th><th>Empleado</th><th>Neto</th><th>Acciones</th></tr></thead>
+          <tbody id="metTablaHistorial"></tbody>
+        </table>
+        <p class="empty-msg" id="metSinHistorial">Sin liquidaciones metalúrgicas guardadas.</p>
+      </div>
+    </section>
+
     <!-- ===================== CONFIGURACION ===================== -->
     <section id="view-configuracion" class="view">
       <header class="view-header">
@@ -321,5 +418,6 @@
 <script src="frontend/js/calculos.js"></script>
 <script src="frontend/js/db.js"></script>
 <script src="frontend/js/app.js"></script>
+<script src="frontend/js/metalurgica.js"></script>
 </body>
 </html>
