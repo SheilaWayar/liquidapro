@@ -778,6 +778,8 @@ async function verReciboGuardado(id) {
     if (!liq) return;
     // Los recibos metalúrgicos (módulo independiente) se muestran en su propia pantalla
     if (liq.resultado && liq.resultado.modoUOM) { await Metalurgica.verRecibo(id); return; }
+    // Idem para los recibos rurales (módulo independiente)
+    if (liq.resultado && liq.resultado.modoRural) { await Rural.verRecibo(id); return; }
     const [cliente, legajo] = await Promise.all([DB.getCliente(liq.clienteId), DB.getLegajo(liq.legajoId)]);
 
     document.querySelectorAll('.menu-item').forEach(b => b.classList.remove('active'));
