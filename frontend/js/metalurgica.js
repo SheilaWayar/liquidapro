@@ -178,9 +178,9 @@ const Metalurgica = (() => {
       </div>`;
     const vacio = '<td class="num"></td>';
     const filasDesc = r.descuentos.map(x =>
-      `<tr><td>${x.nombre}</td><td class="num">${x.pct !== null ? x.pct + '%' : 'Manual'}</td>${vacio}${vacio}<td class="num">${fmt(x.importe)}</td></tr>`).join('');
+      `<tr><td>${x.nombre}</td><td class="num">${x.pct !== null ? x.pct + '%' : ''}</td>${vacio}${vacio}<td class="num">${fmt(x.importe)}</td></tr>`).join('');
     const filasContrib = r.contribuciones.map(x =>
-      `<tr><td>${x.nombre}</td><td class="num">${x.pct !== null ? x.pct + '%' : 'Manual'}</td><td class="num">${fmt(x.importe)}</td></tr>`).join('');
+      `<tr><td>${x.nombre}</td><td class="num">${x.pct !== null ? x.pct + '%' : ''}</td><td class="num">${fmt(x.importe)}</td></tr>`).join('');
 
     return `
     <div class="recibo recibo-met">
