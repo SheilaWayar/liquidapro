@@ -33,6 +33,7 @@ const Metalurgica = (() => {
   const suma = (arr) => arr.reduce((a, b) => a + b, 0);
   const fmt = (n) => '$ ' + num(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fecha = (iso) => { if (!iso) return ''; const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${y}`; };
+  const mesAnio = (ym) => { if (!ym) return ''; const [y, m] = String(ym).split('-'); return `${m}/${y}`; };
   const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   let contexto = null;      // liquidación calculada pendiente de guardar
@@ -141,6 +142,8 @@ const Metalurgica = (() => {
       modoUOM: true,
       tipoLiquidacion: 'metalurgica',
       lugarPago: String(d.lugar || '').trim(),
+      fechaRecibo: d.fechaRecibo || '',
+      periodoDeposito: d.periodoDeposito || '',
       valorHora, horas, remuneracionBase,
       anios, antiguedadPct: anios * PARAM.antiguedadPctPorAnio, antiguedad,
       imgrTotal, imgr,
@@ -189,7 +192,7 @@ const Metalurgica = (() => {
       <div class="recibo-empresa">
         <div class="razon">${cliente.razonSocial}</div>
         <div>C.U.I.T: ${cliente.cuit}</div>
-        <div>${cliente.domicilio || ''} ${cliente.provincia ? '- ' + cliente.provincia : ''}</div>
+        <div>${[cliente.domicilio, cliente.provincia].filter(Boolean).join(' - ')}</div>
       </div>
       <div class="recibo-grid cols-2">
         <div><div class="label">Quincena abonada</div><div class="valor">${ctx.quincenaTexto} de ${ctx.periodoTexto}</div></div>
@@ -204,11 +207,12 @@ const Metalurgica = (() => {
         <div><div class="label">Obra social</div><div class="valor">${legajo.obraSocial || '—'}</div></div>
         <div><div class="label">Básico por hora</div><div class="valor">${fmt(r.valorHora)}</div></div>
       </div>
-      <div class="recibo-grid cols-5">
+      <div class="recibo-grid cols-5" style="grid-template-columns:repeat(6,1fr)">
         <div><div class="label">Fecha ingreso</div><div class="valor">${fecha(legajo.fechaIngreso)}</div></div>
         <div><div class="label">Categoría</div><div class="valor">${legajo.categoria || '—'}</div></div>
         <div><div class="label">Tarea desempeñada</div><div class="valor">${legajo.tarea || '—'}</div></div>
         <div><div class="label">Fecha último depósito</div><div class="valor">${ctx.fechaPago ? fecha(ctx.fechaPago) : '—'}</div></div>
+        <div><div class="label">Período</div><div class="valor">${mesAnio(r.periodoDeposito) || '—'}</div></div>
         <div><div class="label">Banco</div><div class="valor">${legajo.banco || '—'}</div></div>
       </div>
 
@@ -244,7 +248,7 @@ const Metalurgica = (() => {
       </table>
 
       ${bloqueFirma}
-      <div class="recibo-pie">Lugar y fecha de pago: ${r.lugarPago || cliente.provincia || ''}, ${ctx.fechaPago ? fecha(ctx.fechaPago) : '—'}</div>
+      <div class="recibo-pie">Lugar y fecha de pago: ${r.lugarPago || cliente.provincia || ''}, ${fecha(r.fechaRecibo) || (ctx.fechaPago ? fecha(ctx.fechaPago) : '—')}</div>
     </div>`;
   }
 
@@ -343,6 +347,8 @@ const Metalurgica = (() => {
         imgr: $('metImgr').value,
         noRemItems: leerNoRem(),
         lugar: $('metLugar').value,
+        fechaRecibo: $('metFechaRecibo').value,
+        periodoDeposito: $('metPeriodoDeposito').value,
         seguroUom: $('metSeguroUom').value,
         ffep: $('metFfep').value,
         seguroVidaSepelio: $('metSeguroVida').value,
