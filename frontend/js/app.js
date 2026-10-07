@@ -319,6 +319,8 @@ async function abrirFormLegajo(id) {
     clienteId: '', legajo: '', nombre: '', cuil: '', tipoContrato: 'Por tiempo indeterminado',
     obraSocial: '', cct: '', fechaIngreso: '', categoria: '', tarea: '', banco: '', basico: ''
   };
+  // Tipo de trabajador (se guarda en el campo "tipo de contrato"): los legajos viejos "Por tiempo indeterminado" son permanentes
+  const esPermanente = !l.tipoContrato || /indeterminado|^\s*permanente/i.test(l.tipoContrato);
   abrirModal(`
     <h3>${id ? 'Editar' : 'Nuevo'} legajo</h3>
     <div class="form-row"><label>Cliente (empleador)</label>
@@ -333,7 +335,12 @@ async function abrirFormLegajo(id) {
     <div class="form-row"><label>Apellido y nombre</label><input class="input" id="fNombre" value="${l.nombre}"></div>
     <div class="grid-2">
       <div><label>Fecha de ingreso</label><input class="input" type="date" id="fFechaIngreso" value="${l.fechaIngreso || ''}"></div>
-      <div><label>Tipo de contrato</label><input class="input" id="fTipoContrato" value="${l.tipoContrato || ''}"></div>
+      <div><label>Tipo de trabajador</label>
+        <select class="input" id="fTipoContrato">
+          <option value="Permanente" ${esPermanente ? 'selected' : ''}>Permanente</option>
+          <option value="No permanente" ${esPermanente ? '' : 'selected'}>No permanente</option>
+        </select>
+      </div>
     </div>
     <div class="grid-2">
       <div><label>Categoría</label><input class="input" id="fCategoria" value="${l.categoria || ''}"></div>
@@ -747,9 +754,11 @@ async function guardarLiquidacionActual() {
 
 async function renderHistorialLiquidaciones() {
   try {
-    const [liqs, clientes, legajos] = await Promise.all([
+    const [todas, clientes, legajos] = await Promise.all([
       DB.getLiquidaciones(), DB.getClientes(), DB.getLegajos()
     ]);
+    // Rural y Metalúrgica (módulos nuevos) tienen su propio historial en su pantalla
+    const liqs = todas.filter(l => l.tipoLiquidacion !== 'rural' && !(l.resultado && l.resultado.modoUOM));
     const tbody = document.getElementById('tablaHistorialLiq');
     tbody.innerHTML = '';
     document.getElementById('msgSinHistorial').style.display = liqs.length ? 'none' : 'block';
@@ -779,7 +788,7 @@ async function verReciboGuardado(id) {
     // Los recibos metalúrgicos (módulo independiente) se muestran en su propia pantalla
     if (liq.resultado && liq.resultado.modoUOM) { await Metalurgica.verRecibo(id); return; }
     // Idem para los recibos rurales (módulo independiente)
-    if (liq.resultado && liq.resultado.modoRural) { await Rural.verRecibo(id); return; }
+    if (liq.tipoLiquidacion === 'rural' || (liq.resultado && liq.resultado.modoRural)) { await Rural.verRecibo(id); return; }
     const [cliente, legajo] = await Promise.all([DB.getCliente(liq.clienteId), DB.getLegajo(liq.legajoId)]);
 
     document.querySelectorAll('.menu-item').forEach(b => b.classList.remove('active'));

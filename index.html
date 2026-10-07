@@ -409,10 +409,36 @@
 
       <div class="card no-print" id="rurFormCard" style="display:none">
         <h3>2. Conceptos de la liquidación</h3>
+        <p class="ayuda-texto" id="rurTipoTrabajadorTexto"></p>
 
         <div class="grid-2">
           <div>
-            <label>Remuneración básica diaria / jornal ($)</label>
+            <label>Remuneración</label>
+            <select id="rurTipoRem" class="input">
+              <option value="mensual">Remuneración mensual</option>
+              <option value="jornal">Remuneración jornal</option>
+            </select>
+          </div>
+          <div>
+            <label>Período del último depósito (mes y año)</label>
+            <input type="month" id="rurPeriodoDeposito" class="input">
+          </div>
+        </div>
+
+        <div class="grid-2" id="rurWrapMensual">
+          <div>
+            <label>Remuneración mensual ($)</label>
+            <input type="number" id="rurMensual" class="input" step="0.01">
+          </div>
+          <div>
+            <label>Valor del día para feriados ($) — mensual ÷ 25 (editable)</label>
+            <input type="number" id="rurValorDia" class="input" step="0.01">
+          </div>
+        </div>
+
+        <div class="grid-2" id="rurWrapJornal" style="display:none">
+          <div>
+            <label>Remuneración jornal ($)</label>
             <input type="number" id="rurBasico" class="input" step="0.01">
           </div>
           <div>
@@ -421,68 +447,49 @@
           </div>
         </div>
 
-        <div class="card sub-card">
+        <div class="card sub-card" id="rurCardAntig">
           <h4>Antigüedad</h4>
-          <div class="grid-3">
-            <div>
-              <label>Modo de cálculo</label>
-              <select id="rurAntigModo" class="input">
-                <option value="automatico">Calcular automáticamente</option>
-                <option value="manual">Ingresar importe manual</option>
-              </select>
+          <div id="rurAntigPerm">
+            <div class="grid-3">
+              <div>
+                <label>Modo de cálculo</label>
+                <select id="rurAntigModoPerm" class="input">
+                  <option value="auto">Automático (años × 1%)</option>
+                  <option value="porcentaje">Porcentaje manual</option>
+                  <option value="importe">Importe manual</option>
+                </select>
+              </div>
+              <div id="rurWrapAntigPctManual" style="display:none">
+                <label>% Antigüedad (sobre remuneración + feriados)</label>
+                <input type="number" id="rurAntigPctManual" class="input" step="0.01" value="0">
+              </div>
+              <div id="rurWrapAntigImporteManual" style="display:none">
+                <label>Importe antigüedad ($)</label>
+                <input type="number" id="rurAntigImportePerm" class="input" step="0.01" value="0">
+              </div>
             </div>
-            <div id="rurWrapAntigPct">
-              <label>% Antigüedad (sobre días trabajados + feriados)</label>
-              <input type="number" id="rurAntigPct" class="input" step="0.1" value="1">
-            </div>
-            <div id="rurWrapAntigManual" style="display:none">
-              <label>Importe antigüedad ($)</label>
-              <input type="number" id="rurAntigManual" class="input" step="0.01" value="0">
-            </div>
+            <p id="rurAntigTexto" class="ayuda-texto"></p>
+          </div>
+          <div id="rurAntigNoPerm" style="display:none">
+            <label>Importe antigüedad ($) — carga manual</label>
+            <input type="number" id="rurAntigManual" class="input" step="0.01" value="0">
           </div>
         </div>
 
         <div class="grid-2">
           <div>
-            <label>% Presentismo / Asist. y Puntualidad</label>
-            <input type="number" id="rurPresentismoPct" class="input" step="0.01" value="8.33">
-          </div>
-          <div>
             <label>A cuenta de futuros aumentos ($)</label>
             <input type="number" id="rurACuenta" class="input" step="0.01" value="0">
           </div>
-        </div>
-
-        <div class="card sub-card">
-          <h4>Contribuciones patronales especiales</h4>
-          <div class="grid-3">
-            <div>
-              <label>ANSSAL / FSR (%)</label>
-              <select id="rurAnssalPct" class="input">
-                <option value="0.6">0,6%</option>
-                <option value="0.9" selected>0,9%</option>
-              </select>
-            </div>
-            <div>
-              <label>Contribución Obra Social (%)</label>
-              <select id="rurObraSocialContribPct" class="input">
-                <option value="5.1" selected>5,1%</option>
-                <option value="5.4">5,4%</option>
-              </select>
-            </div>
-            <div>
-              <label>FFEP ($) — importe manual</label>
-              <input type="number" id="rurFfep" class="input" step="0.01" value="0">
-            </div>
-          </div>
+          <div></div>
         </div>
 
         <h4>Conceptos remunerativos adicionales</h4>
-        <p class="ayuda-texto">Podés cargar a mano cualquier concepto remunerativo (nombre + importe).</p>
+        <p class="ayuda-texto">Podés cargar a mano cualquier concepto remunerativo (nombre + importe). El feriado rural se agrega con su botón.</p>
         <div id="rurListaRem" class="lista-dinamica"></div>
         <div class="acciones-liq" style="margin-top:0">
           <button class="btn-secondary btn-sm" id="btnRurAddRem">+ Agregar concepto remunerativo</button>
-          <button class="btn-secondary btn-sm" id="btnRurAddFeriado">+ Agregar feriados (días × básico)</button>
+          <button class="btn-secondary btn-sm" id="btnRurAddFeriado">+ Agregar feriado rural (días × valor del día)</button>
         </div>
 
         <h4>Conceptos no remunerativos adicionales</h4>
