@@ -8,6 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 .met-duplicado { display: none; }
+.recibo-copia { text-align: right; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 6px 12px; }
 @media print {
   .met-duplicado { display: block !important; break-before: page; page-break-before: always; }
   #view-metalurgica .recibo { page-break-inside: avoid; break-inside: avoid; }
@@ -420,8 +421,8 @@
             </select>
           </div>
           <div>
-            <label>Período del último depósito (mes y año)</label>
-            <input type="month" id="rurPeriodoDeposito" class="input">
+            <label>Lugar de pago (sale al pie del recibo)</label>
+            <input type="text" id="rurLugar" class="input" placeholder="Ej: Salta">
           </div>
         </div>
 

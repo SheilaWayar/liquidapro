@@ -48,7 +48,7 @@ const Rural = (() => {
   const suma = (arr) => arr.reduce((a, b) => a + b, 0);
   const fmt = (n) => '$ ' + num(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fecha = (iso) => { if (!iso) return ''; const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${y}`; };
-  const mesAnio = (ym) => { if (!ym) return ''; const [y, m] = String(ym).split('-'); return `${m}/${y}`; };
+    const ACTIVIDAD_RURAL = 'Trabajador agrario Ley 26.727';
   const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   let contexto = null;        // liquidación calculada pendiente de guardar
@@ -110,7 +110,7 @@ const Rural = (() => {
      CÁLCULO
      datos: { tipoRemuneracion:'mensual'|'jornal', remuneracion, diasTrabajados,
               valorDia, feriados:[{dias}], permanente, fechaIngreso, fechaLiquidacion,
-              antigManualImporte, aCuenta, periodoDeposito,
+              antigManualImporte, aCuenta, lugar,
               remAdicionales:[{concepto,importe}], noRemAdicionales:[{concepto,importe}] }
   ========================================================= */
   function calcular(d) {
@@ -177,7 +177,7 @@ const Rural = (() => {
       tipoLiquidacion: 'rural',
       tipoRemuneracion: mensual ? 'mensual' : 'jornal',
       permanente: !!d.permanente,
-      periodoDeposito: d.periodoDeposito || '',
+      lugarPago: String(d.lugar || '').trim(),
       basico: valor, diasTrabajados, basicoImporte, valorDia,
       feriados, totalFeriados,
       anios, antiguedadPct, antiguedadImporte, antiguedadDetalle,
@@ -207,8 +207,7 @@ const Rural = (() => {
 
     const filasBasico = mensual
       ? `<tr><td>Remuneración mensual</td>${v}<td class="num">${fmt(r.basicoImporte)}</td>${v}${v}</tr>`
-      : `<tr><td>Remuneración jornal</td><td class="num">${fmt(r.basico)} / día</td>${v}${v}${v}</tr>
-          <tr><td>Cantidad de días trabajados</td><td class="num">${r.diasTrabajados}</td><td class="num">${fmt(r.basicoImporte)}</td>${v}${v}</tr>`;
+      : `<tr><td>Cantidad de días trabajados</td><td class="num">${r.diasTrabajados}</td><td class="num">${fmt(r.basicoImporte)}</td>${v}${v}</tr>`;
     const filasFeriados = (r.feriados || []).map(f =>
       `<tr><td>Feriado rural</td><td class="num">${f.dias}</td><td class="num">${fmt(f.importe)}</td>${v}${v}</tr>`).join('');
     const filasRem = r.remAdicionales.map(c => `<tr><td>${c.concepto}</td>${v}<td class="num">${fmt(c.importe)}</td>${v}${v}</tr>`).join('');
@@ -251,12 +250,11 @@ const Rural = (() => {
         <div><div class="label">Obra social</div><div class="valor">${legajo.obraSocial || '—'}</div></div>
         <div><div class="label">${mensual ? 'Remuneración mensual' : 'Remuneración jornal'}</div><div class="valor">${campoBasico}</div></div>
       </div>
-      <div class="recibo-grid cols-5" style="grid-template-columns:repeat(6,1fr)">
+      <div class="recibo-grid cols-5">
         <div><div class="label">Fecha ingreso</div><div class="valor">${fecha(legajo.fechaIngreso)}</div></div>
         <div><div class="label">Categoría</div><div class="valor">${legajo.categoria || '—'}</div></div>
-        <div><div class="label">Tarea desempeñada</div><div class="valor">${legajo.tarea || '—'}</div></div>
-        <div><div class="label">Fecha último depósito</div><div class="valor">${ctx.fechaPago ? fecha(ctx.fechaPago) : '—'}</div></div>
-        <div><div class="label">Período</div><div class="valor">${mesAnio(r.periodoDeposito) || '—'}</div></div>
+        <div><div class="label">Modalidad de contratación</div><div class="valor">${legajo.tarea || '—'}</div></div>
+        <div><div class="label">Actividad</div><div class="valor">${ACTIVIDAD_RURAL}</div></div>
         <div><div class="label">Banco</div><div class="valor">${legajo.banco || '—'}</div></div>
       </div>
 
@@ -295,7 +293,7 @@ const Rural = (() => {
       </table>
 
       ${bloqueFirma}
-      <div class="recibo-pie">Lugar y fecha de pago: ${cliente.provincia || ''}, ${ctx.fechaPago ? fecha(ctx.fechaPago) : '—'}</div>
+      <div class="recibo-pie">Lugar y fecha de pago: ${r.lugarPago || cliente.provincia || ''}, ${ctx.fechaPago ? fecha(ctx.fechaPago) : '—'}</div>
     </div>`;
   }
 
@@ -317,6 +315,11 @@ const Rural = (() => {
     .recibo-grid { display: table; table-layout: fixed; width: 100%; border-bottom: 1px solid #000; }
     .recibo-grid > div { display: table-cell; padding: 3px 7px; border-right: 1px solid #000; vertical-align: top; }
     .recibo-grid > div:last-child { border-right: 0; }
+    .recibo-grid.cols-5 > div:nth-child(1) { width: 15%; }
+    .recibo-grid.cols-5 > div:nth-child(2) { width: 17%; }
+    .recibo-grid.cols-5 > div:nth-child(3) { width: 29%; }
+    .recibo-grid.cols-5 > div:nth-child(4) { width: 25%; }
+    .recibo-grid.cols-5 > div:nth-child(5) { width: 14%; }
     .recibo-grid .label { font-size: 6.5pt; font-weight: 700; text-transform: uppercase; color: #333; }
     .recibo-grid .valor { font-size: 9pt; min-height: 11pt; }
     table.recibo-conceptos { width: 100%; border-collapse: collapse; }
@@ -527,7 +530,6 @@ const Rural = (() => {
       const periodo = $('rurPeriodo').value;
       const fechaPago = $('rurFechaPago').value;
       if (!clienteId || !legajoId || !periodo) { alert('Completá cliente, legajo y período antes de calcular.'); return; }
-      if (!(remuneracionActual() > 0)) { alert('Cargá la remuneración (' + (esMensual() ? 'mensual' : 'jornal') + ').'); return; }
 
       const [cliente, legajo] = await Promise.all([DB.getCliente(clienteId), DB.getLegajo(legajoId)]);
       const permanente = esPermanente(legajo);
@@ -549,7 +551,7 @@ const Rural = (() => {
         antigPctManual: $('rurAntigPctManual').value,
         antigManualImporte: permanente ? $('rurAntigImportePerm').value : $('rurAntigManual').value,
         aCuenta: $('rurACuenta').value,
-        periodoDeposito: $('rurPeriodoDeposito').value,
+        lugar: $('rurLugar').value,
         remAdicionales: leerFilasConcepto('rurListaRem'),
         noRemAdicionales: leerFilasConcepto('rurListaNoRem')
       });
@@ -656,6 +658,8 @@ const Rural = (() => {
       if (!e.target.value) { ocultarFormulario(); return; }
       const legajo = await DB.getLegajo(e.target.value);
       legajoActual = legajo;
+      const cli = await DB.getCliente($('rurCliente').value);
+      $('rurLugar').value = (cli && cli.provincia) || '';
       // la remuneración de referencia del legajo se precarga en el campo que corresponda
       $('rurMensual').value = esMensual() ? (legajo.basico || '') : '';
       $('rurBasico').value = esMensual() ? '' : (legajo.basico || '');

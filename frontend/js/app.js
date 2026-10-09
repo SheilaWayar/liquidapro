@@ -321,11 +321,19 @@ async function abrirFormLegajo(id) {
   };
   // Tipo de trabajador (se guarda en el campo "tipo de contrato"): los legajos viejos "Por tiempo indeterminado" son permanentes
   const esPermanente = !l.tipoContrato || /indeterminado|^\s*permanente/i.test(l.tipoContrato);
+  // Legajo RURAL: se reconoce por la Actividad "Trabajador agrario Ley 26.727" (se guarda en el campo C.C.T.)
+  const esRural = /26\.?727|agrario/i.test(l.cct || '');
   abrirModal(`
     <h3>${id ? 'Editar' : 'Nuevo'} legajo</h3>
     <div class="form-row"><label>Cliente (empleador)</label>
       <select class="input" id="fClienteId">
         ${clientes.map(c => `<option value="${c.id}" ${c.id === l.clienteId ? 'selected' : ''}>${c.razonSocial}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row"><label>Categoría de liquidación</label>
+      <select class="input" id="fEsRural" onchange="alternarCamposRural()">
+        <option value="no" ${esRural ? '' : 'selected'}>Otra categoría (Mensual / Gastronómico / Metalúrgica)</option>
+        <option value="si" ${esRural ? 'selected' : ''}>Rural</option>
       </select>
     </div>
     <div class="grid-2">
@@ -344,11 +352,20 @@ async function abrirFormLegajo(id) {
     </div>
     <div class="grid-2">
       <div><label>Categoría</label><input class="input" id="fCategoria" value="${l.categoria || ''}"></div>
-      <div><label>Tarea desempeñada</label><input class="input" id="fTarea" value="${l.tarea || ''}"></div>
+      <div><label id="lblTarea">${esRural ? 'Modalidad de contratación' : 'Tarea desempeñada'}</label>
+        <input class="input" id="fTarea" value="${l.tarea || ''}" ${esRural ? 'list="listaModalidades"' : ''}>
+        <datalist id="listaModalidades">
+          <option value="Trabajador permanente de prestación continua">
+          <option value="Trabajador permanente discontinuo">
+          <option value="Trabajador temporario">
+          <option value="Contratado por equipo o cuadrilla familiar">
+        </datalist>
+      </div>
     </div>
     <div class="grid-2">
       <div><label>Obra Social</label><input class="input" id="fObraSocial" value="${l.obraSocial || ''}"></div>
-      <div><label>C.C.T.</label><input class="input" id="fCct" value="${l.cct || ''}" placeholder="130/75"></div>
+      <div id="fWrapCct" style="display:${esRural ? 'none' : 'block'}"><label>C.C.T.</label><input class="input" id="fCct" value="${esRural ? '' : (l.cct || '')}" placeholder="130/75"></div>
+      <div id="fWrapActividad" style="display:${esRural ? 'block' : 'none'}"><label>Actividad</label><input class="input" id="fActividad" value="${ACTIVIDAD_RURAL}" readonly></div>
     </div>
     <div class="grid-2">
       <div><label>Banco de pago</label><input class="input" id="fBancoPago" value="${l.banco || ''}"></div>
@@ -359,6 +376,18 @@ async function abrirFormLegajo(id) {
       <button class="btn-primary" onclick="guardarLegajo('${id || ''}')">Guardar</button>
     </div>
   `);
+}
+
+const ACTIVIDAD_RURAL = 'Trabajador agrario Ley 26.727';
+
+/** Legajo rural: "Tarea desempeñada" pasa a ser "Modalidad de contratación" y aparece la Actividad */
+function alternarCamposRural() {
+  const rural = document.getElementById('fEsRural').value === 'si';
+  document.getElementById('lblTarea').textContent = rural ? 'Modalidad de contratación' : 'Tarea desempeñada';
+  const t = document.getElementById('fTarea');
+  if (rural) t.setAttribute('list', 'listaModalidades'); else t.removeAttribute('list');
+  document.getElementById('fWrapCct').style.display = rural ? 'none' : 'block';
+  document.getElementById('fWrapActividad').style.display = rural ? 'block' : 'none';
 }
 
 async function guardarLegajo(id) {
@@ -377,7 +406,7 @@ async function guardarLegajo(id) {
       categoria: document.getElementById('fCategoria').value.trim(),
       tarea: document.getElementById('fTarea').value.trim(),
       obraSocial: document.getElementById('fObraSocial').value.trim(),
-      cct: document.getElementById('fCct').value.trim(),
+      cct: document.getElementById('fEsRural').value === 'si' ? ACTIVIDAD_RURAL : document.getElementById('fCct').value.trim(),
       banco: document.getElementById('fBancoPago').value.trim(),
       basico: document.getElementById('fBasico').value
     };
