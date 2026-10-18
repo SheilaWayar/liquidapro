@@ -8,12 +8,13 @@
    - Remuneración: MENSUAL (importe) o JORNAL (jornal x días trabajados)
    - Feriado rural = días x valor del día
        (jornal: el jornal; mensual: mensual ÷ 25, editable)
-   - Antigüedad:
-       PERMANENTES    -> automático: años completos desde el ingreso hasta el día de
-                         liquidación x 1%, aplicado sobre (remuneración + feriados)
-                         o bien MANUAL: porcentaje (sobre remuneración + feriados) o importe
+   - Antigüedad (modo por defecto: SIN ANTIGÜEDAD):
+       PERMANENTES    -> sin antigüedad (por defecto), automático (años completos
+                         desde el ingreso x 1% sobre remuneración + feriados),
+                         porcentaje manual o importe manual
        NO PERMANENTES -> solo importe manual
-   - Total remunerativo = remuneración + antigüedad + feriados + a cuenta
+       Si la antigüedad es $ 0,00 NO se imprime en el recibo.
+   - Total remunerativo = remuneración + antigüedad + feriados
                           + todos los conceptos remunerativos agregados
    - Retenciones y contribuciones: porcentajes fijos (ver PARAM)
    Solo reutiliza la capa de datos (DB) para clientes, legajos y liquidaciones.
@@ -48,7 +49,7 @@ const Rural = (() => {
   const suma = (arr) => arr.reduce((a, b) => a + b, 0);
   const fmt = (n) => '$ ' + num(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fecha = (iso) => { if (!iso) return ''; const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${y}`; };
-    const ACTIVIDAD_RURAL = 'Trabajador agrario Ley 26.727';
+  const ACTIVIDAD_RURAL = 'Trabajador agrario Ley 26.727';
   const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   let contexto = null;        // liquidación calculada pendiente de guardar
@@ -110,7 +111,8 @@ const Rural = (() => {
      CÁLCULO
      datos: { tipoRemuneracion:'mensual'|'jornal', remuneracion, diasTrabajados,
               valorDia, feriados:[{dias}], permanente, fechaIngreso, fechaLiquidacion,
-              antigManualImporte, aCuenta, lugar,
+              antigModo:'ninguna'|'auto'|'porcentaje'|'importe',
+              antigPctManual, antigManualImporte, lugar,
               remAdicionales:[{concepto,importe}], noRemAdicionales:[{concepto,importe}] }
   ========================================================= */
   function calcular(d) {
@@ -128,11 +130,11 @@ const Rural = (() => {
     const feriados = (d.feriados || []).map(f => ({ dias: num(f.dias), importe: r2(num(f.dias) * valorDia) }));
     const totalFeriados = r2(suma(feriados.map(f => f.importe)));
 
-    // Antigüedad
-    let anios = 0, antiguedadPct = 0, antiguedadImporte, antiguedadDetalle;
+    // Antigüedad (por defecto: SIN antigüedad)
+    let anios = 0, antiguedadPct = 0, antiguedadImporte = 0, antiguedadDetalle = '';
     if (d.permanente) {
       const baseAntig = basicoImporte + totalFeriados;
-      const modo = d.antigModo || 'auto';
+      const modo = d.antigModo || 'ninguna';
       if (modo === 'importe') {                       // importe manual
         antiguedadImporte = r2(num(d.antigManualImporte));
         antiguedadDetalle = '';
@@ -140,22 +142,22 @@ const Rural = (() => {
         antiguedadPct = num(d.antigPctManual);
         antiguedadImporte = r2(baseAntig * antiguedadPct / 100);
         antiguedadDetalle = antiguedadPct + '%';
-      } else {                                        // automático: años completos x 1%
+      } else if (modo === 'auto') {                   // automático: años completos x 1%
         anios = aniosCompletos(d.fechaIngreso, d.fechaLiquidacion);
         antiguedadPct = anios * PARAM.antiguedadPctPorAnio;
         antiguedadImporte = r2(baseAntig * antiguedadPct / 100);
         antiguedadDetalle = antiguedadPct + '%';
       }
+      // cualquier otro valor (incluido 'ninguna'): sin antigüedad
     } else {
       antiguedadImporte = r2(num(d.antigManualImporte));
       antiguedadDetalle = '';
     }
 
-    const aCuenta = num(d.aCuenta);
     const remAdicionales = (d.remAdicionales || []).map(x => ({ concepto: x.concepto, importe: r2(num(x.importe)) }));
     const noRemAdicionales = (d.noRemAdicionales || []).map(x => ({ concepto: x.concepto, importe: r2(num(x.importe)) }));
 
-    const totalRemunerativo = r2(basicoImporte + antiguedadImporte + aCuenta + totalFeriados +
+    const totalRemunerativo = r2(basicoImporte + antiguedadImporte + totalFeriados +
       suma(remAdicionales.map(x => x.importe)));
     const totalNoRemunerativo = r2(suma(noRemAdicionales.map(x => x.importe)));
 
@@ -181,7 +183,7 @@ const Rural = (() => {
       basico: valor, diasTrabajados, basicoImporte, valorDia,
       feriados, totalFeriados,
       anios, antiguedadPct, antiguedadImporte, antiguedadDetalle,
-      presentismoImporte: 0, aCuenta,
+      presentismoImporte: 0,
       remAdicionales, noRemAdicionales,
       totalRemunerativo, totalNoRemunerativo,
       descuentos, totalDescuentos, neto,
@@ -215,6 +217,11 @@ const Rural = (() => {
     const filasDesc = r.descuentos.map(x => `<tr><td>${x.nombre}</td><td class="num">${x.pct}%</td>${v}${v}<td class="num">${fmt(x.importe)}</td></tr>`).join('');
     const filasContrib = r.contribuciones.map(x =>
       `<tr><td>${x.nombre}</td><td class="num">${x.pct !== null && x.pct !== undefined ? x.pct + '%' : ''}</td><td class="num">${fmt(x.importe)}</td></tr>`).join('');
+
+    // La antigüedad solo se imprime si es mayor a $ 0,00
+    const filaAntiguedad = num(r.antiguedadImporte) > 0
+      ? `<tr><td>Antigüedad</td><td class="num">${r.antiguedadDetalle || ''}</td><td class="num">${fmt(r.antiguedadImporte)}</td>${v}${v}</tr>`
+      : '';
 
     const campoBasico = editable
       ? `<input type="number" class="input-basico" step="0.01" value="${r.basico}" onchange="Rural.cambiarRemuneracion(this.value)" title="Podés modificarlo y se recalcula al instante">`
@@ -264,7 +271,7 @@ const Rural = (() => {
         </thead>
         <tbody>
           ${filasBasico}
-          <tr><td>Antigüedad</td><td class="num">${r.antiguedadDetalle || ''}</td><td class="num">${fmt(r.antiguedadImporte)}</td>${v}${v}</tr>
+          ${filaAntiguedad}
           ${r.presentismoImporte ? `<tr><td>Asistencia y Puntualidad</td>${v}<td class="num">${fmt(r.presentismoImporte)}</td>${v}${v}</tr>` : ''}
           ${r.aCuenta ? `<tr><td>A cuenta de futuros aumentos</td>${v}<td class="num">${fmt(r.aCuenta)}</td>${v}${v}</tr>` : ''}
           ${filasFeriados}
@@ -295,6 +302,17 @@ const Rural = (() => {
       ${bloqueFirma}
       <div class="recibo-pie">Lugar y fecha de pago: ${r.lugarPago || cliente.provincia || ''}, ${ctx.fechaPago ? fecha(ctx.fechaPago) : '—'}</div>
     </div>`;
+  }
+
+  /** Red de seguridad: borra del recibo ya dibujado cualquier fila Antigüedad con importe $ 0,00 */
+  function limpiarAntiguedadCero(contenedor) {
+    contenedor.querySelectorAll('table.recibo-conceptos tbody tr').forEach(tr => {
+      const celdas = tr.querySelectorAll('td');
+      if (celdas.length >= 3 && /^\s*Antig[üu]edad\s*$/i.test(celdas[0].textContent)) {
+        const importe = parseFloat(String(celdas[2].textContent).replace(/[^\d,-]/g, '').replace(',', '.')) || 0;
+        if (importe <= 0) tr.remove();
+      }
+    });
   }
 
   /* =========================================================
@@ -347,6 +365,7 @@ const Rural = (() => {
       tmp.innerHTML = rec.outerHTML;
       // la remuneración editable de la pantalla se imprime como texto
       tmp.querySelectorAll('input.input-basico').forEach(i => i.replaceWith(document.createTextNode(fmt(i.value))));
+      limpiarAntiguedadCero(tmp);
       return `<div class="hoja-a4">${tmp.innerHTML}</div>`;
     }).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Recibo de haberes</title><style>${CSS_IMPRESION}</style></head><body>${hojas}</body></html>`;
@@ -423,8 +442,8 @@ const Rural = (() => {
     $('rurAntigPerm').style.display = perm ? 'block' : 'none';
     $('rurAntigNoPerm').style.display = perm ? 'none' : 'block';
     $('rurTipoTrabajadorTexto').innerHTML = perm
-      ? '👷 Trabajador <strong>permanente</strong>: la antigüedad es automática (1% por año) o la podés cargar a mano (porcentaje o importe).'
-      : '👷 Trabajador <strong>no permanente</strong>: la antigüedad se carga solo de forma manual.';
+      ? '👷 Trabajador <strong>permanente</strong>: por defecto <strong>sin antigüedad</strong>. Si tiene, elegí automático (1% por año), porcentaje manual o importe manual. Si es $ 0,00 no sale en el recibo.'
+      : '👷 Trabajador <strong>no permanente</strong>: la antigüedad se carga solo de forma manual. Si es $ 0,00 no sale en el recibo.';
     aplicarModoAntiguedadPermUI();
   }
 
@@ -451,9 +470,13 @@ const Rural = (() => {
       $('rurAntigTexto').innerHTML = `Antigüedad: <strong>${pctM}%</strong> manual sobre (remuneración + feriados) ${fmt(baseM)} = <strong>${fmt(r2(baseM * pctM / 100))}</strong>`;
       return;
     }
+    if (modo !== 'auto') {
+      $('rurAntigTexto').innerHTML = 'Sin antigüedad: no se calcula y no sale en el recibo.';
+      return;
+    }
     const ingreso = legajoActual.fechaIngreso;
     if (!ingreso) {
-      $('rurAntigTexto').innerHTML = '⚠️ Este legajo no tiene fecha de ingreso cargada: la antigüedad será $ 0,00. Editá el legajo para cargarla.';
+      $('rurAntigTexto').innerHTML = '⚠️ Este legajo no tiene fecha de ingreso: no se calcula antigüedad y esa línea no sale en el recibo.';
       return;
     }
     const liq = $('rurFechaPago').value;
@@ -464,7 +487,8 @@ const Rural = (() => {
     const importe = r2(base * pct / 100);
     $('rurAntigTexto').innerHTML =
       `Ingreso: <strong>${fecha(ingreso)}</strong> · Día de liquidación: <strong>${liq ? fecha(liq) : 'hoy (no cargaste fecha de pago)'}</strong><br>` +
-      `<strong>${anios} años</strong> × ${PARAM.antiguedadPctPorAnio}% = <strong>${pct}%</strong> sobre (remuneración + feriados) ${fmt(base)} = <strong>${fmt(importe)}</strong>`;
+      `<strong>${anios} años</strong> × ${PARAM.antiguedadPctPorAnio}% = <strong>${pct}%</strong> sobre (remuneración + feriados) ${fmt(base)} = <strong>${fmt(importe)}</strong>` +
+      (importe > 0 ? '' : '<br>Antigüedad $ 0,00: no sale en el recibo.');
   }
 
   /** Recalcula los importes de las filas de feriados y la vista previa */
@@ -535,8 +559,6 @@ const Rural = (() => {
       const permanente = esPermanente(legajo);
 
       const modoAntig = permanente ? $('rurAntigModoPerm').value : 'importe';
-      if (permanente && modoAntig === 'auto' && !legajo.fechaIngreso &&
-          !confirm('Este legajo no tiene fecha de ingreso: la antigüedad va a ser $ 0,00. ¿Calcular igual?')) return;
 
       const resultado = calcular({
         tipoRemuneracion: $('rurTipoRem').value,
@@ -550,7 +572,6 @@ const Rural = (() => {
         antigModo: modoAntig,
         antigPctManual: $('rurAntigPctManual').value,
         antigManualImporte: permanente ? $('rurAntigImportePerm').value : $('rurAntigManual').value,
-        aCuenta: $('rurACuenta').value,
         lugar: $('rurLugar').value,
         remAdicionales: leerFilasConcepto('rurListaRem'),
         noRemAdicionales: leerFilasConcepto('rurListaNoRem')
@@ -564,6 +585,7 @@ const Rural = (() => {
       };
 
       $('rurReciboContainer').innerHTML = renderRecibos(cliente, legajo, contexto, resultado, true);
+      limpiarAntiguedadCero($('rurReciboContainer'));
       $('btnRurGuardar').style.display = 'inline-block';
       $('rurResultadoCard').style.display = 'block';
       $('rurResultadoCard').scrollIntoView({ behavior: 'smooth' });
@@ -628,6 +650,7 @@ const Rural = (() => {
 
       contexto = null;
       $('rurReciboContainer').innerHTML = renderRecibos(cliente, legajo, liq, liq.resultado, false);
+      limpiarAntiguedadCero($('rurReciboContainer'));
       $('btnRurGuardar').style.display = 'none';
       $('rurFormCard').style.display = 'none';
       $('rurResultadoCard').style.display = 'block';
@@ -644,7 +667,28 @@ const Rural = (() => {
     } catch (err) { mostrarErrorEnPantalla(err); }
   }
 
+  /** Deja la pantalla lista aunque el index.html sea el viejo:
+   *  agrega "Sin antigüedad" si falta y oculta "A cuenta de futuros aumentos" */
+  function prepararPantalla() {
+    const selModo = $('rurAntigModoPerm');
+    if (selModo && ![...selModo.options].some(o => o.value === 'ninguna')) {
+      const op = document.createElement('option');
+      op.value = 'ninguna';
+      op.textContent = 'Sin antigüedad';
+      selModo.insertBefore(op, selModo.firstChild);
+    }
+    if (selModo) selModo.value = 'ninguna';
+    const aCuenta = $('rurACuenta');
+    if (aCuenta) {
+      aCuenta.value = 0;
+      const bloque = aCuenta.closest('.grid-2');
+      if (bloque) bloque.style.display = 'none';
+    }
+  }
+
   function init() {
+    prepararPantalla();
+
     $('rurCliente').addEventListener('change', async (e) => {
       const sel = $('rurLegajo');
       const legajos = e.target.value ? await DB.getLegajosPorCliente(e.target.value) : [];
@@ -667,7 +711,7 @@ const Rural = (() => {
       $('rurValorDia').value = '';
       sugerirValorDia();
       $('rurAntigManual').value = 0;
-      $('rurAntigModoPerm').value = 'auto';
+      $('rurAntigModoPerm').value = 'ninguna';     // por defecto: sin antigüedad
       $('rurAntigPctManual').value = 0;
       $('rurAntigImportePerm').value = 0;
       aplicarTipoTrabajadorUI();
