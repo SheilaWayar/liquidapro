@@ -455,7 +455,6 @@
               <div>
                 <label>Modo de cálculo</label>
                 <select id="rurAntigModoPerm" class="input">
-                  <option value="ninguna" selected>Sin antigüedad</option>
                   <option value="auto">Automático (años × 1%)</option>
                   <option value="porcentaje">Porcentaje manual</option>
                   <option value="importe">Importe manual</option>
@@ -476,6 +475,14 @@
             <label>Importe antigüedad ($) — carga manual</label>
             <input type="number" id="rurAntigManual" class="input" step="0.01" value="0">
           </div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <label>A cuenta de futuros aumentos ($)</label>
+            <input type="number" id="rurACuenta" class="input" step="0.01" value="0">
+          </div>
+          <div></div>
         </div>
 
         <h4>Conceptos remunerativos adicionales</h4>
@@ -552,6 +559,6 @@
 <script src="frontend/js/db.js"></script>
 <script src="frontend/js/app.js"></script>
 <script src="frontend/js/metalurgica.js"></script>
-<script src="frontend/js/rural.js?v=3"></script>
+<script src="frontend/js/rural.js"></script>
 </body>
 </html>
