@@ -177,7 +177,7 @@ const Gastronomico = (() => {
         <div>${[cliente.domicilio, cliente.provincia].filter(Boolean).join(' - ')}</div>
       </div>
       <div class="recibo-grid cols-2">
-        <div><div class="label">Período abonado</div><div class="valor">${ctx.periodoTexto}</div></div>
+        <div><div class="label">Período Liquidado</div><div class="valor">${ctx.periodoTexto}</div></div>
         <div><div class="label">Legajo N°</div><div class="valor">${legajo.legajo}</div></div>
       </div>
       <div class="recibo-grid cols-2">
