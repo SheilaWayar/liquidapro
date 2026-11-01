@@ -535,7 +535,6 @@
           <select id="gasCliente" class="input"><option value="">Seleccionar cliente...</option></select>
           <select id="gasLegajo" class="input" disabled><option value="">Seleccionar legajo...</option></select>
           <input type="month" id="gasPeriodo" class="input">
-          <input type="date" id="gasFechaPago" class="input" title="Fecha de pago (sale al pie del recibo)">
         </div>
       </div>
 
@@ -569,7 +568,7 @@
 
         <div class="card sub-card">
           <h4>Contribuciones de carga manual</h4>
-          <div class="grid-3">
+          <div class="grid-2">
             <div>
               <label>Riesgo de trabajo - FFEP ($)</label>
               <input type="number" id="gasFfep" class="input" step="0.01" value="0">
@@ -578,9 +577,27 @@
               <label>Seguro colectivo de vida obligatorio ($)</label>
               <input type="number" id="gasSeguroColectivo" class="input" step="0.01" value="0">
             </div>
+          </div>
+        </div>
+
+        <div class="card sub-card">
+          <h4>Datos del recibo (se cargan a mano)</h4>
+          <div class="grid-2">
             <div>
-              <label>Lugar de pago (sale al pie del recibo)</label>
+              <label>Fecha de pago de aportes (encabezado)</label>
+              <input type="date" id="gasFechaAportes" class="input">
+            </div>
+            <div>
+              <label>Período depositado (encabezado, mes y año)</label>
+              <input type="month" id="gasPeriodoDepositado" class="input">
+            </div>
+            <div>
+              <label>Lugar de pago (pie del recibo)</label>
               <input type="text" id="gasLugar" class="input" placeholder="Ej: Salta">
+            </div>
+            <div>
+              <label>Fecha del recibo (pie del recibo)</label>
+              <input type="date" id="gasFechaRecibo" class="input">
             </div>
           </div>
         </div>

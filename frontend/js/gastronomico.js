@@ -48,6 +48,7 @@ const Gastronomico = (() => {
   const suma = (arr) => arr.reduce((a, b) => a + b, 0);
   const fmt = (n) => '$ ' + num(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fecha = (iso) => { if (!iso) return ''; const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${y}`; };
+  const mesAnio = (ym) => { if (!ym) return ''; const [y, m] = String(ym).split('-'); return `${m}/${y}`; };
   const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   let contexto = null;   // liquidación calculada pendiente de guardar
@@ -87,7 +88,7 @@ const Gastronomico = (() => {
   /* =========================================================
      CÁLCULO
      datos: { basico, diasTrabajados, antigPct, ffepImporte, seguroColectivoImporte,
-              lugar, noRemAdicionales:[{concepto,importe}] }
+              lugar, fechaPagoAportes, periodoDepositado, noRemAdicionales:[{concepto,importe}] }
   ========================================================= */
   function calcular(d) {
     const basico = num(d.basico);
@@ -128,6 +129,8 @@ const Gastronomico = (() => {
       modoGastro: true,
       tipoLiquidacion: 'gastronomico',
       lugarPago: String(d.lugar || '').trim(),
+      fechaPagoAportes: d.fechaPagoAportes || '',
+      periodoDepositado: d.periodoDepositado || '',
       basico, diasTrabajados, totalBasico,
       antiguedadPct, antiguedadImporte,
       complementoPct: PARAM.complementoServicioPct, complementoImporte,
@@ -186,10 +189,12 @@ const Gastronomico = (() => {
         <div><div class="label">Obra social</div><div class="valor">${legajo.obraSocial || '—'}</div></div>
         <div><div class="label">Remuneración básica</div><div class="valor">${fmt(r.basico)}</div></div>
       </div>
-      <div class="recibo-grid cols-5" style="grid-template-columns:repeat(4,1fr)">
+      <div class="recibo-grid cols-5" style="grid-template-columns:repeat(6,1fr)">
         <div><div class="label">Fecha ingreso</div><div class="valor">${fecha(legajo.fechaIngreso)}</div></div>
         <div><div class="label">Categoría</div><div class="valor">${legajo.categoria || '—'}</div></div>
         <div><div class="label">Tarea desempeñada</div><div class="valor">${legajo.tarea || '—'}</div></div>
+        <div><div class="label">Fecha pago aportes</div><div class="valor">${fecha(r.fechaPagoAportes) || '—'}</div></div>
+        <div><div class="label">Período depositado</div><div class="valor">${mesAnio(r.periodoDepositado) || '—'}</div></div>
         <div><div class="label">Banco</div><div class="valor">${legajo.banco || '—'}</div></div>
       </div>
 
@@ -198,7 +203,7 @@ const Gastronomico = (() => {
           <tr><th style="width:34%">Conceptos</th><th>Un.</th><th>Remunerativo</th><th>No remunerativo</th><th>Descuentos</th></tr>
         </thead>
         <tbody>
-          <tr><td>Cantidad de días trabajados</td><td class="num">${r.diasTrabajados}</td><td class="num">${fmt(r.totalBasico)}</td>${v}${v}</tr>
+          <tr><td>Básico Convenio</td><td class="num">${r.diasTrabajados}</td><td class="num">${fmt(r.totalBasico)}</td>${v}${v}</tr>
           <tr><td>Antigüedad</td><td class="num">${r.antiguedadPct}%</td><td class="num">${fmt(r.antiguedadImporte)}</td>${v}${v}</tr>
           <tr><td>Complemento de servicio</td><td class="num">${r.complementoPct}%</td><td class="num">${fmt(r.complementoImporte)}</td>${v}${v}</tr>
           <tr><td>Asistencia</td><td class="num">${r.asistenciaPct}%</td><td class="num">${fmt(r.asistenciaImporte)}</td>${v}${v}</tr>
@@ -248,6 +253,12 @@ const Gastronomico = (() => {
     .recibo-grid { display: table; table-layout: fixed; width: 100%; border-bottom: 1px solid #000; }
     .recibo-grid > div { display: table-cell; padding: 3px 7px; border-right: 1px solid #000; vertical-align: top; }
     .recibo-grid > div:last-child { border-right: 0; }
+    .recibo-grid.cols-5 > div:nth-child(1) { width: 14%; }
+    .recibo-grid.cols-5 > div:nth-child(2) { width: 14%; }
+    .recibo-grid.cols-5 > div:nth-child(3) { width: 23%; }
+    .recibo-grid.cols-5 > div:nth-child(4) { width: 18%; }
+    .recibo-grid.cols-5 > div:nth-child(5) { width: 17%; }
+    .recibo-grid.cols-5 > div:nth-child(6) { width: 14%; }
     .recibo-grid .label { font-size: 6.5pt; font-weight: 700; text-transform: uppercase; color: #333; }
     .recibo-grid .valor { font-size: 9pt; min-height: 11pt; }
     table.recibo-conceptos { width: 100%; border-collapse: collapse; }
@@ -359,7 +370,7 @@ const Gastronomico = (() => {
       const clienteId = $('gasCliente').value;
       const legajoId = $('gasLegajo').value;
       const periodo = $('gasPeriodo').value;
-      const fechaPago = $('gasFechaPago').value;
+      const fechaPago = $('gasFechaRecibo').value;   // fecha manual del pie del recibo
       if (!clienteId || !legajoId || !periodo) { alert('Completá cliente, legajo y período antes de calcular.'); return; }
 
       const [cliente, legajo] = await Promise.all([DB.getCliente(clienteId), DB.getLegajo(legajoId)]);
@@ -371,6 +382,8 @@ const Gastronomico = (() => {
         ffepImporte: $('gasFfep').value,
         seguroColectivoImporte: $('gasSeguroColectivo').value,
         lugar: $('gasLugar').value,
+        fechaPagoAportes: $('gasFechaAportes').value,
+        periodoDepositado: $('gasPeriodoDepositado').value,
         noRemAdicionales: leerNoRem()
       });
 
