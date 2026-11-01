@@ -787,7 +787,7 @@ async function renderHistorialLiquidaciones() {
       DB.getLiquidaciones(), DB.getClientes(), DB.getLegajos()
     ]);
     // Rural y Metalúrgica (módulos nuevos) tienen su propio historial en su pantalla
-    const liqs = todas.filter(l => l.tipoLiquidacion !== 'rural' && !(l.resultado && l.resultado.modoUOM));
+    const liqs = todas.filter(l => l.tipoLiquidacion !== 'rural' && !(l.resultado && (l.resultado.modoUOM || l.resultado.modoGastro)));
     const tbody = document.getElementById('tablaHistorialLiq');
     tbody.innerHTML = '';
     document.getElementById('msgSinHistorial').style.display = liqs.length ? 'none' : 'block';
@@ -816,6 +816,8 @@ async function verReciboGuardado(id) {
     if (!liq) return;
     // Los recibos metalúrgicos (módulo independiente) se muestran en su propia pantalla
     if (liq.resultado && liq.resultado.modoUOM) { await Metalurgica.verRecibo(id); return; }
+    // Idem para los recibos gastronómicos (módulo independiente)
+    if (liq.resultado && liq.resultado.modoGastro) { await Gastronomico.verRecibo(id); return; }
     // Idem para los recibos rurales (módulo independiente)
     if (liq.tipoLiquidacion === 'rural' || (liq.resultado && liq.resultado.modoRural)) { await Rural.verRecibo(id); return; }
     const [cliente, legajo] = await Promise.all([DB.getCliente(liq.clienteId), DB.getLegajo(liq.legajoId)]);
