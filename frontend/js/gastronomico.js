@@ -492,8 +492,12 @@ const Gastronomico = (() => {
         <button class="btn-secondary btn-sm" id="btnGasAddRem">+ Agregar concepto remunerativo</button>`);
   }
 
+  const VERSION = 'v6 · con otros conceptos remunerativos manuales';
+
   function init() {
     asegurarBloqueRemunerativos();
+    const sub = document.querySelector('#view-gastronomico .view-header p');
+    if (sub) sub.textContent += ' — ' + VERSION;
     $('gasCliente').addEventListener('change', async (e) => {
       const sel = $('gasLegajo');
       const legajos = e.target.value ? await DB.getLegajosPorCliente(e.target.value) : [];
@@ -511,6 +515,7 @@ const Gastronomico = (() => {
       $('gasLugar').value = (cli && cli.provincia) || '';
       $('gasListaNoRem').innerHTML = '';
       $('gasListaRem').innerHTML = '';
+      agregarFila('gasListaRem', 'rem');   // fila lista para cargar concepto + importe
       actualizarPreview();
       $('gasFormCard').style.display = 'block';
       $('gasResultadoCard').style.display = 'none';
