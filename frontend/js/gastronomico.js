@@ -1,3 +1,4 @@
+/* VERSION v7 — gastronomico.js (con otros conceptos remunerativos manuales) */
 /* =========================================================
    gastronomico.js
    MÓDULO INDEPENDIENTE de liquidación GASTRONÓMICA.
@@ -492,7 +493,7 @@ const Gastronomico = (() => {
         <button class="btn-secondary btn-sm" id="btnGasAddRem">+ Agregar concepto remunerativo</button>`);
   }
 
-  const VERSION = 'v6 · con otros conceptos remunerativos manuales';
+  const VERSION = 'v7 · con otros conceptos remunerativos manuales';
 
   function init() {
     asegurarBloqueRemunerativos();
