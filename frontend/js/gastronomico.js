@@ -10,6 +10,10 @@
    - Complemento servicio= 12% sobre el total básico
    - Asistencia          = 10% sobre el total básico
    - Total remunerativo  = total básico + antigüedad + complemento + asistencia
+   - Otros remunerativos = conceptos e importes cargados a mano; suman al total
+                           remunerativo pero NO entran en la base de antigüedad,
+                           complemento de servicio ni asistencia (esas son solo
+                           sobre el total básico)
    - No remunerativos    = conceptos e importes cargados a mano
    - Retenciones y contribuciones: % fijos sobre el total remunerativo (ver PARAM)
    - Riesgo de trabajo - FFEP y Seguro colectivo de vida obligatorio: importe manual
@@ -52,7 +56,7 @@ const Gastronomico = (() => {
   const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   let contexto = null;   // liquidación calculada pendiente de guardar
-  let noRemCount = 0;
+  let noRemCount = 0, remCount = 0;
 
   /* ---------- Número a letras (propio de este módulo) ---------- */
   function centenasALetras(n, apocope) {
@@ -88,7 +92,8 @@ const Gastronomico = (() => {
   /* =========================================================
      CÁLCULO
      datos: { basico, diasTrabajados, antigPct, ffepImporte, seguroColectivoImporte,
-              lugar, fechaPagoAportes, periodoDepositado, noRemAdicionales:[{concepto,importe}] }
+              lugar, fechaPagoAportes, periodoDepositado,
+              remAdicionales:[{concepto,importe}], noRemAdicionales:[{concepto,importe}] }
   ========================================================= */
   function calcular(d) {
     const basico = num(d.basico);
@@ -105,7 +110,10 @@ const Gastronomico = (() => {
     const complementoImporte = r2(totalBasico * PARAM.complementoServicioPct / 100);
     const asistenciaImporte = r2(totalBasico * PARAM.asistenciaPct / 100);
 
-    const totalRemunerativo = r2(totalBasico + antiguedadImporte + complementoImporte + asistenciaImporte);
+    // Otros conceptos remunerativos (manuales): suman al total remunerativo, no a la base de los % anteriores
+    const remAdicionales = (d.remAdicionales || []).map(x => ({ concepto: x.concepto, importe: r2(num(x.importe)) }));
+    const totalRemunerativo = r2(totalBasico + antiguedadImporte + complementoImporte + asistenciaImporte +
+      suma(remAdicionales.map(x => x.importe)));
 
     const noRemAdicionales = (d.noRemAdicionales || []).map(x => ({ concepto: x.concepto, importe: r2(num(x.importe)) }));
     const totalNoRemunerativo = r2(suma(noRemAdicionales.map(x => x.importe)));
@@ -135,7 +143,7 @@ const Gastronomico = (() => {
       antiguedadPct, antiguedadImporte,
       complementoPct: PARAM.complementoServicioPct, complementoImporte,
       asistenciaPct: PARAM.asistenciaPct, asistenciaImporte,
-      totalRemunerativo, noRemAdicionales, totalNoRemunerativo,
+      totalRemunerativo, remAdicionales, noRemAdicionales, totalNoRemunerativo,
       descuentos, totalDescuentos, neto,
       contribuciones, totalContribuciones
     };
@@ -154,6 +162,7 @@ const Gastronomico = (() => {
     const esDuplicado = copia === 'duplicado';
     const v = '<td class="num"></td>';
 
+    const filasRem = (r.remAdicionales || []).map(c => `<tr><td>${c.concepto}</td>${v}<td class="num">${fmt(c.importe)}</td>${v}${v}</tr>`).join('');
     const filasNoRem = r.noRemAdicionales.map(c => `<tr><td>${c.concepto}</td>${v}${v}<td class="num">${fmt(c.importe)}</td>${v}</tr>`).join('');
     const filasDesc = r.descuentos.map(x => `<tr><td>${x.nombre}</td><td class="num">${x.pct}%</td>${v}${v}<td class="num">${fmt(x.importe)}</td></tr>`).join('');
     const filasContrib = r.contribuciones.map(x =>
@@ -177,7 +186,7 @@ const Gastronomico = (() => {
         <div>${[cliente.domicilio, cliente.provincia].filter(Boolean).join(' - ')}</div>
       </div>
       <div class="recibo-grid cols-2">
-        <div><div class="label">Período Liquidado</div><div class="valor">${ctx.periodoTexto}</div></div>
+        <div><div class="label">Período abonado</div><div class="valor">${ctx.periodoTexto}</div></div>
         <div><div class="label">Legajo N°</div><div class="valor">${legajo.legajo}</div></div>
       </div>
       <div class="recibo-grid cols-2">
@@ -203,10 +212,11 @@ const Gastronomico = (() => {
           <tr><th style="width:34%">Conceptos</th><th>Un.</th><th>Remunerativo</th><th>No remunerativo</th><th>Descuentos</th></tr>
         </thead>
         <tbody>
-          <tr><td>Básico Convenio</td><td class="num">${r.diasTrabajados}</td><td class="num">${fmt(r.totalBasico)}</td>${v}${v}</tr>
+          <tr><td>Cantidad de días trabajados</td><td class="num">${r.diasTrabajados}</td><td class="num">${fmt(r.totalBasico)}</td>${v}${v}</tr>
           <tr><td>Antigüedad</td><td class="num">${r.antiguedadPct}%</td><td class="num">${fmt(r.antiguedadImporte)}</td>${v}${v}</tr>
           <tr><td>Complemento de servicio</td><td class="num">${r.complementoPct}%</td><td class="num">${fmt(r.complementoImporte)}</td>${v}${v}</tr>
           <tr><td>Asistencia</td><td class="num">${r.asistenciaPct}%</td><td class="num">${fmt(r.asistenciaImporte)}</td>${v}${v}</tr>
+          ${filasRem}
           ${filasNoRem}
           ${filasDesc}
           <tr class="totales">
@@ -335,29 +345,32 @@ const Gastronomico = (() => {
     const antig = r2(totalBasico * pct / 100);
     const comp = r2(totalBasico * PARAM.complementoServicioPct / 100);
     const asis = r2(totalBasico * PARAM.asistenciaPct / 100);
+    const otros = r2(suma(leerFilas('gasListaRem').map(f => num(f.importe))));
     $('gasPreviewTexto').innerHTML =
       `Total básico: <strong>${fmt(totalBasico)}</strong> · Antigüedad (${pct}%): <strong>${fmt(antig)}</strong> · ` +
       `Complemento de servicio (${PARAM.complementoServicioPct}%): <strong>${fmt(comp)}</strong> · ` +
-      `Asistencia (${PARAM.asistenciaPct}%): <strong>${fmt(asis)}</strong><br>` +
-      `Total remunerativo: <strong>${fmt(r2(totalBasico + antig + comp + asis))}</strong>`;
+      `Asistencia (${PARAM.asistenciaPct}%): <strong>${fmt(asis)}</strong>` +
+      (otros ? ` · Otros remunerativos: <strong>${fmt(otros)}</strong>` : '') + `<br>` +
+      `Total remunerativo: <strong>${fmt(r2(totalBasico + antig + comp + asis + otros))}</strong>`;
   }
 
-  /* ---- No remunerativos: concepto + importe ---- */
-  function agregarNoRem() {
-    const rowId = 'gas-norem-' + (noRemCount++);
+  /* ---- Conceptos manuales (remunerativos y no remunerativos): concepto + importe ---- */
+  function agregarFila(contenedorId, tipo) {
+    const idx = tipo === 'rem' ? remCount++ : noRemCount++;
+    const rowId = `gas-${tipo}-${idx}`;
     const div = document.createElement('div');
     div.className = 'fila-concepto';
     div.id = 'fila-' + rowId;
     div.innerHTML = `
       <input class="input concepto-nombre" placeholder="Concepto">
       <input class="input concepto-importe" type="number" step="0.01" placeholder="Importe">
-      <button class="btn-icon" title="Quitar" onclick="document.getElementById('fila-${rowId}').remove()">✖</button>`;
-    $('gasListaNoRem').appendChild(div);
+      <button class="btn-icon" title="Quitar" onclick="document.getElementById('fila-${rowId}').remove(); Gastronomico.refrescar()">✖</button>`;
+    $(contenedorId).appendChild(div);
   }
 
-  function leerNoRem() {
+  function leerFilas(contenedorId) {
     const out = [];
-    document.querySelectorAll('#gasListaNoRem .fila-concepto').forEach(f => {
+    document.querySelectorAll(`#${contenedorId} .fila-concepto`).forEach(f => {
       const concepto = f.querySelector('.concepto-nombre').value.trim();
       const importe = f.querySelector('.concepto-importe').value;
       if (concepto && importe) out.push({ concepto, importe });
@@ -384,7 +397,8 @@ const Gastronomico = (() => {
         lugar: $('gasLugar').value,
         fechaPagoAportes: $('gasFechaAportes').value,
         periodoDepositado: $('gasPeriodoDepositado').value,
-        noRemAdicionales: leerNoRem()
+        remAdicionales: leerFilas('gasListaRem'),
+        noRemAdicionales: leerFilas('gasListaNoRem')
       });
 
       const [anio, mes] = periodo.split('-');
@@ -484,6 +498,7 @@ const Gastronomico = (() => {
       $('gasBasico').value = legajo.basico || '';
       $('gasLugar').value = (cli && cli.provincia) || '';
       $('gasListaNoRem').innerHTML = '';
+      $('gasListaRem').innerHTML = '';
       actualizarPreview();
       $('gasFormCard').style.display = 'block';
       $('gasResultadoCard').style.display = 'none';
@@ -491,7 +506,9 @@ const Gastronomico = (() => {
 
     ['gasBasico', 'gasDias', 'gasAntigPct'].forEach(id => $(id).addEventListener('input', actualizarPreview));
 
-    $('btnGasAddNoRem').addEventListener('click', agregarNoRem);
+    $('btnGasAddRem').addEventListener('click', () => agregarFila('gasListaRem', 'rem'));
+    $('btnGasAddNoRem').addEventListener('click', () => agregarFila('gasListaNoRem', 'norem'));
+    $('gasListaRem').addEventListener('input', actualizarPreview);
     $('btnGasCalcular').addEventListener('click', calcularYMostrar);
     $('btnGasGuardar').addEventListener('click', guardar);
     $('btnGasImprimir').addEventListener('click', imprimir);
@@ -505,5 +522,5 @@ const Gastronomico = (() => {
 
   document.addEventListener('DOMContentLoaded', init);
 
-  return { calcular, verRecibo, anular, PARAM, _renderRecibos: renderRecibos, _CSS: CSS_IMPRESION };
+  return { calcular, verRecibo, anular, refrescar: actualizarPreview, PARAM, _renderRecibos: renderRecibos, _CSS: CSS_IMPRESION };
 })();
