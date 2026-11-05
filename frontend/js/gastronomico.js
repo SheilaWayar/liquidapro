@@ -481,7 +481,19 @@ const Gastronomico = (() => {
     } catch (err) { mostrarErrorEnPantalla(err); }
   }
 
+  /** Si el HTML todavía es una versión anterior, agrega acá el bloque "Otros conceptos remunerativos" */
+  function asegurarBloqueRemunerativos() {
+    if ($('gasListaRem')) return;
+    const titulo = $('gasListaNoRem').previousElementSibling.previousElementSibling; // <h4> de "Conceptos no remunerativos"
+    titulo.insertAdjacentHTML('beforebegin', `
+        <h4>Otros conceptos remunerativos</h4>
+        <p class="ayuda-texto">Cargá el nombre del concepto y su importe. Suman al total remunerativo (y a sus retenciones y contribuciones), pero no modifican la antigüedad, el complemento de servicio ni la asistencia.</p>
+        <div id="gasListaRem" class="lista-dinamica"></div>
+        <button class="btn-secondary btn-sm" id="btnGasAddRem">+ Agregar concepto remunerativo</button>`);
+  }
+
   function init() {
+    asegurarBloqueRemunerativos();
     $('gasCliente').addEventListener('change', async (e) => {
       const sel = $('gasLegajo');
       const legajos = e.target.value ? await DB.getLegajosPorCliente(e.target.value) : [];
