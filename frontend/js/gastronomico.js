@@ -1,4 +1,4 @@
-/* VERSION v7 — gastronomico.js (con otros conceptos remunerativos manuales) */
+/* VERSION v9 — gastronomico.js (otros remunerativos entran en la base de antigüedad, complemento y asistencia) */
 /* =========================================================
    gastronomico.js
    MÓDULO INDEPENDIENTE de liquidación GASTRONÓMICA.
@@ -7,14 +7,12 @@
 
    Reglas:
    - Total básico        = remuneración básica (manual) x días trabajados (manual)
-   - Antigüedad          = % (manual) sobre el total básico
-   - Complemento servicio= 12% sobre el total básico
-   - Asistencia          = 10% sobre el total básico
-   - Total remunerativo  = total básico + antigüedad + complemento + asistencia
-   - Otros remunerativos = conceptos e importes cargados a mano; suman al total
-                           remunerativo pero NO entran en la base de antigüedad,
-                           complemento de servicio ni asistencia (esas son solo
-                           sobre el total básico)
+   - Otros remunerativos = conceptos e importes cargados a mano
+   - Base de cálculo     = total básico + otros remunerativos
+   - Antigüedad          = % (manual) sobre la base de cálculo
+   - Complemento servicio= 12% sobre la base de cálculo
+   - Asistencia          = 10% sobre la base de cálculo
+   - Total remunerativo  = base de cálculo + antigüedad + complemento + asistencia
    - No remunerativos    = conceptos e importes cargados a mano
    - Retenciones y contribuciones: % fijos sobre el total remunerativo (ver PARAM)
    - Riesgo de trabajo - FFEP y Seguro colectivo de vida obligatorio: importe manual
@@ -103,18 +101,20 @@ const Gastronomico = (() => {
     // Total básico = remuneración básica x días trabajados
     const totalBasico = r2(basico * diasTrabajados);
 
-    // Antigüedad: % manual sobre el total básico
-    const antiguedadPct = num(d.antigPct);
-    const antiguedadImporte = r2(totalBasico * antiguedadPct / 100);
-
-    // Complemento de servicio y asistencia: % fijos sobre el total básico
-    const complementoImporte = r2(totalBasico * PARAM.complementoServicioPct / 100);
-    const asistenciaImporte = r2(totalBasico * PARAM.asistenciaPct / 100);
-
-    // Otros conceptos remunerativos (manuales): suman al total remunerativo, no a la base de los % anteriores
+    // Otros conceptos remunerativos (manuales): suman al total remunerativo y también a la base de los % siguientes
     const remAdicionales = (d.remAdicionales || []).map(x => ({ concepto: x.concepto, importe: r2(num(x.importe)) }));
-    const totalRemunerativo = r2(totalBasico + antiguedadImporte + complementoImporte + asistenciaImporte +
-      suma(remAdicionales.map(x => x.importe)));
+    const totalRemAdicionales = r2(suma(remAdicionales.map(x => x.importe)));
+    const baseCalculo = r2(totalBasico + totalRemAdicionales);
+
+    // Antigüedad: % manual sobre la base de cálculo (total básico + otros remunerativos)
+    const antiguedadPct = num(d.antigPct);
+    const antiguedadImporte = r2(baseCalculo * antiguedadPct / 100);
+
+    // Complemento de servicio y asistencia: % fijos sobre la misma base de cálculo
+    const complementoImporte = r2(baseCalculo * PARAM.complementoServicioPct / 100);
+    const asistenciaImporte = r2(baseCalculo * PARAM.asistenciaPct / 100);
+
+    const totalRemunerativo = r2(baseCalculo + antiguedadImporte + complementoImporte + asistenciaImporte);
 
     const noRemAdicionales = (d.noRemAdicionales || []).map(x => ({ concepto: x.concepto, importe: r2(num(x.importe)) }));
     const totalNoRemunerativo = r2(suma(noRemAdicionales.map(x => x.importe)));
@@ -140,7 +140,7 @@ const Gastronomico = (() => {
       lugarPago: String(d.lugar || '').trim(),
       fechaPagoAportes: d.fechaPagoAportes || '',
       periodoDepositado: d.periodoDepositado || '',
-      basico, diasTrabajados, totalBasico,
+      basico, diasTrabajados, totalBasico, totalRemAdicionales, baseCalculo,
       antiguedadPct, antiguedadImporte,
       complementoPct: PARAM.complementoServicioPct, complementoImporte,
       asistenciaPct: PARAM.asistenciaPct, asistenciaImporte,
@@ -342,17 +342,19 @@ const Gastronomico = (() => {
   /** Vista previa en vivo de los conceptos remunerativos */
   function actualizarPreview() {
     const totalBasico = r2(num($('gasBasico').value) * num($('gasDias').value));
-    const pct = num($('gasAntigPct').value);
-    const antig = r2(totalBasico * pct / 100);
-    const comp = r2(totalBasico * PARAM.complementoServicioPct / 100);
-    const asis = r2(totalBasico * PARAM.asistenciaPct / 100);
     const otros = r2(suma(leerFilas('gasListaRem').map(f => num(f.importe))));
+    const base = r2(totalBasico + otros);   // base de antigüedad, complemento y asistencia
+    const pct = num($('gasAntigPct').value);
+    const antig = r2(base * pct / 100);
+    const comp = r2(base * PARAM.complementoServicioPct / 100);
+    const asis = r2(base * PARAM.asistenciaPct / 100);
     $('gasPreviewTexto').innerHTML =
-      `Total básico: <strong>${fmt(totalBasico)}</strong> · Antigüedad (${pct}%): <strong>${fmt(antig)}</strong> · ` +
+      `Total básico: <strong>${fmt(totalBasico)}</strong>` +
+      (otros ? ` · Otros remunerativos: <strong>${fmt(otros)}</strong> · Base de cálculo: <strong>${fmt(base)}</strong>` : '') + ` · ` +
+      `Antigüedad (${pct}%): <strong>${fmt(antig)}</strong> · ` +
       `Complemento de servicio (${PARAM.complementoServicioPct}%): <strong>${fmt(comp)}</strong> · ` +
-      `Asistencia (${PARAM.asistenciaPct}%): <strong>${fmt(asis)}</strong>` +
-      (otros ? ` · Otros remunerativos: <strong>${fmt(otros)}</strong>` : '') + `<br>` +
-      `Total remunerativo: <strong>${fmt(r2(totalBasico + antig + comp + asis + otros))}</strong>`;
+      `Asistencia (${PARAM.asistenciaPct}%): <strong>${fmt(asis)}</strong><br>` +
+      `Total remunerativo: <strong>${fmt(r2(base + antig + comp + asis))}</strong>`;
   }
 
   /* ---- Conceptos manuales (remunerativos y no remunerativos): concepto + importe ---- */
@@ -488,12 +490,12 @@ const Gastronomico = (() => {
     const titulo = $('gasListaNoRem').previousElementSibling.previousElementSibling; // <h4> de "Conceptos no remunerativos"
     titulo.insertAdjacentHTML('beforebegin', `
         <h4>Otros conceptos remunerativos</h4>
-        <p class="ayuda-texto">Cargá el nombre del concepto y su importe. Suman al total remunerativo (y a sus retenciones y contribuciones), pero no modifican la antigüedad, el complemento de servicio ni la asistencia.</p>
+        <p class="ayuda-texto">Cargá el nombre del concepto y su importe. Suman al total remunerativo (y a sus retenciones y contribuciones) y también modifican la antigüedad, el complemento de servicio y la asistencia.</p>
         <div id="gasListaRem" class="lista-dinamica"></div>
         <button class="btn-secondary btn-sm" id="btnGasAddRem">+ Agregar concepto remunerativo</button>`);
   }
 
-  const VERSION = 'v7 · con otros conceptos remunerativos manuales';
+  const VERSION = 'v9 · otros remunerativos entran en la base de antigüedad, complemento y asistencia';
 
   function init() {
     asegurarBloqueRemunerativos();
