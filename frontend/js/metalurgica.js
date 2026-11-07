@@ -1,4 +1,4 @@
-/* VERSION v3 — metalurgica.js (IMGR opcional + seguro de vida obligatorio) */
+/* VERSION v4 — metalurgica.js (IMGR = importe directo + seguro de vida obligatorio) */
 /* =========================================================
    metalurgica.js
    MÓDULO INDEPENDIENTE de liquidación METALÚRGICA (UOM).
@@ -100,11 +100,11 @@ const Metalurgica = (() => {
     const anios = aniosCompletos(d.fechaIngreso, d.fechaLiquidacion);
     const antiguedad = r2(remuneracionBase * anios * PARAM.antiguedadPctPorAnio / 100);
 
-    // IMGR = índice ingresado - (remuneración base + antigüedad). Nunca negativo.
-    const imgrTotal = r2(num(d.imgr));
-    const sumaBase = r2(remuneracionBase + antiguedad);
-    const imgr = imgrTotal > 0 ? Math.max(0, r2(imgrTotal - sumaBase)) : 0;
+    // IMGR = importe cargado tal cual (no se resta nada). Si es 0 o está vacío, no sale en el recibo.
+    const imgr = Math.max(0, r2(num(d.imgr)));
+    const imgrTotal = imgr; // se mantiene por compatibilidad con liquidaciones guardadas
 
+    const sumaBase = r2(remuneracionBase + antiguedad);
     const totalRemunerativo = r2(sumaBase + imgr);
     const noRemItems = (d.noRemItems || []).map(x => ({ concepto: x.concepto, importe: r2(num(x.importe)) }));
     const noRemunerativo = r2(suma(noRemItems.map(x => x.importe)));
@@ -279,7 +279,6 @@ const Metalurgica = (() => {
     const anios = ingreso ? aniosCompletos(ingreso, liq) : 0;
     const pct = anios * PARAM.antiguedadPctPorAnio;
     const antig = r2(base * pct / 100);
-    const sumaBase = r2(base + antig);
 
     let lineaAntig;
     if (!ingreso) {
@@ -289,14 +288,12 @@ const Metalurgica = (() => {
         `${anios} años × ${PARAM.antiguedadPctPorAnio}% = <strong>${pct}%</strong> sobre ${fmt(base)} = <strong>${fmt(antig)}</strong>`;
     }
 
-    const imgrTotal = r2(num($('metImgr').value));
+    const imgr = r2(num($('metImgr').value));
     let lineaImgr;
-    if (imgrTotal <= 0) {
-      lineaImgr = '<strong>IMGR:</strong> sin cargar — no se muestra en el recibo (en la primera quincena no va). Para la segunda, cargá el total del índice.';
-    } else if (imgrTotal > sumaBase) {
-      lineaImgr = `<strong>IMGR:</strong> ${fmt(imgrTotal)} − (${fmt(base)} + ${fmt(antig)} = ${fmt(sumaBase)}) = <strong>${fmt(r2(imgrTotal - sumaBase))}</strong>`;
+    if (imgr <= 0) {
+      lineaImgr = '<strong>IMGR:</strong> sin cargar — no se muestra en el recibo (en la primera quincena no va). Para la segunda, cargá el importe del IMGR.';
     } else {
-      lineaImgr = `<strong>IMGR:</strong> ⚠️ el índice (${fmt(imgrTotal)}) no supera horas + antigüedad (${fmt(sumaBase)}), por eso el IMGR da <strong>$ 0,00</strong>.`;
+      lineaImgr = `<strong>IMGR:</strong> <strong>${fmt(imgr)}</strong> (importe cargado, se suma tal cual al total remunerativo)`;
     }
 
     $('metAntigTexto').innerHTML = lineaAntig + '<br>' + lineaImgr;
@@ -523,10 +520,19 @@ const Metalurgica = (() => {
           </div>`);
   }
 
-  const VERSION = 'v3 · IMGR opcional + seguro de vida obligatorio';
+  /** El campo del IMGR ahora es un importe directo: se actualiza la etiqueta aunque el HTML siga con el texto viejo */
+  function ajustarEtiquetaImgr() {
+    const campo = $('metImgr');
+    if (!campo || !campo.parentElement) return;
+    const etiqueta = campo.parentElement.querySelector('label');
+    if (etiqueta) etiqueta.textContent = 'IMGR — importe ($)';
+  }
+
+  const VERSION = 'v4 · IMGR importe directo';
 
   function init() {
     asegurarCampoSeguroVidaObl();
+    ajustarEtiquetaImgr();
     const sub = document.querySelector('#view-metalurgica .view-header p');
     if (sub) sub.textContent += ' — ' + VERSION;
     $('metCliente').addEventListener('change', async (e) => {
