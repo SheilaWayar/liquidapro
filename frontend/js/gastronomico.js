@@ -1,4 +1,4 @@
-/* VERSION v9 — gastronomico.js (otros remunerativos entran en la base de antigüedad, complemento y asistencia) */
+/* VERSION v10 — gastronomico.js (otros remunerativos entran en la base de antigüedad, complemento y asistencia; textos de pantalla actualizados) */
 /* =========================================================
    gastronomico.js
    MÓDULO INDEPENDIENTE de liquidación GASTRONÓMICA.
@@ -495,10 +495,24 @@ const Gastronomico = (() => {
         <button class="btn-secondary btn-sm" id="btnGasAddRem">+ Agregar concepto remunerativo</button>`);
   }
 
-  const VERSION = 'v9 · otros remunerativos entran en la base de antigüedad, complemento y asistencia';
+  /** Actualiza los textos de la pantalla que vienen del index.html (no hace falta subir el index.html) */
+  function ajustarTextosPantalla() {
+    const campo = $('gasAntigPct');
+    if (campo && campo.parentElement) {
+      const etiqueta = campo.parentElement.querySelector('label');
+      if (etiqueta) etiqueta.textContent = '% Antigüedad (sobre total básico + otros remunerativos)';
+    }
+    const lista = $('gasListaRem');
+    if (lista && lista.previousElementSibling && lista.previousElementSibling.tagName === 'P') {
+      lista.previousElementSibling.textContent = 'Cargá el nombre del concepto y su importe. Suman al total remunerativo (y a sus retenciones y contribuciones) y también modifican la antigüedad, el complemento de servicio y la asistencia.';
+    }
+  }
+
+  const VERSION = 'v10 · otros remunerativos entran en la base de antigüedad, complemento y asistencia';
 
   function init() {
     asegurarBloqueRemunerativos();
+    ajustarTextosPantalla();
     const sub = document.querySelector('#view-gastronomico .view-header p');
     if (sub) sub.textContent += ' — ' + VERSION;
     $('gasCliente').addEventListener('change', async (e) => {
