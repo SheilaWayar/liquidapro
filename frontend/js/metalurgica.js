@@ -86,7 +86,7 @@ const Metalurgica = (() => {
   /* =========================================================
      CÁLCULO
      datos: { valorHora, horas, imgr, noRem, seguroUom, ffep,
-              seguroVidaSepelio, fechaIngreso, fechaLiquidacion }
+              seguroVidaSepelio, seguroVidaObligatorio, fechaIngreso, fechaLiquidacion }
   ========================================================= */
   function calcular(d) {
     const valorHora = num(d.valorHora);
@@ -136,6 +136,8 @@ const Metalurgica = (() => {
     if (ffep > 0) contribuciones.push({ nombre: 'Riesgo de trabajo - FFEP', pct: null, importe: ffep });
     const seguroVida = r2(num(d.seguroVidaSepelio));
     if (seguroVida > 0) contribuciones.push({ nombre: 'Seguro de vida y sepelio', pct: null, importe: seguroVida });
+    const seguroVidaObl = r2(num(d.seguroVidaObligatorio));   // manual: solo sale en el recibo si se carga
+    if (seguroVidaObl > 0) contribuciones.push({ nombre: 'Seguro de vida obligatorio', pct: null, importe: seguroVidaObl });
     const totalContribuciones = r2(suma(contribuciones.map(x => x.importe)));
 
     return {
@@ -223,7 +225,7 @@ const Metalurgica = (() => {
         <tbody>
           <tr><td>Horas trabajadas</td><td class="num">${r.horas} hs</td><td class="num">${fmt(r.remuneracionBase)}</td>${vacio}${vacio}</tr>
           <tr><td>Antigüedad</td><td class="num">${r.antiguedadPct !== undefined ? r.antiguedadPct : r.anios * PARAM.antiguedadPctPorAnio}%</td><td class="num">${fmt(r.antiguedad)}</td>${vacio}${vacio}</tr>
-          <tr><td>I.M.G.R. (Índice Mínimo Global Remunerativo)</td>${vacio}<td class="num">${fmt(r.imgr)}</td>${vacio}${vacio}</tr>
+          ${r.imgr > 0 ? `<tr><td>I.M.G.R. (Índice Mínimo Global Remunerativo)</td>${vacio}<td class="num">${fmt(r.imgr)}</td>${vacio}${vacio}</tr>` : ''}
           ${filasNoRem(r)}
           ${filasDesc}
           <tr class="totales">
@@ -289,7 +291,7 @@ const Metalurgica = (() => {
     const imgrTotal = r2(num($('metImgr').value));
     let lineaImgr;
     if (imgrTotal <= 0) {
-      lineaImgr = '<strong>IMGR:</strong> cargá el total del índice (campo "IMGR — total del índice") para que se calcule.';
+      lineaImgr = '<strong>IMGR:</strong> sin cargar — no se muestra en el recibo (en la primera quincena no va). Para la segunda, cargá el total del índice.';
     } else if (imgrTotal > sumaBase) {
       lineaImgr = `<strong>IMGR:</strong> ${fmt(imgrTotal)} − (${fmt(base)} + ${fmt(antig)} = ${fmt(sumaBase)}) = <strong>${fmt(r2(imgrTotal - sumaBase))}</strong>`;
     } else {
@@ -352,6 +354,7 @@ const Metalurgica = (() => {
         seguroUom: $('metSeguroUom').value,
         ffep: $('metFfep').value,
         seguroVidaSepelio: $('metSeguroVida').value,
+        seguroVidaObligatorio: $('metSeguroVidaObl').value,
         fechaIngreso: legajo.fechaIngreso,
         fechaLiquidacion: fechaPago // vacío = fecha de hoy
       });
@@ -509,7 +512,18 @@ const Metalurgica = (() => {
     iframe.srcdoc = html;
   }
 
+  /** Si el HTML todavía es una versión anterior, agrega acá el campo "Seguro de vida obligatorio" */
+  function asegurarCampoSeguroVidaObl() {
+    if ($('metSeguroVidaObl')) return;
+    $('metSeguroVida').parentElement.insertAdjacentHTML('afterend', `
+          <div>
+            <label>Seguro de vida obligatorio ($)</label>
+            <input type="number" id="metSeguroVidaObl" class="input" step="0.01" value="0">
+          </div>`);
+  }
+
   function init() {
+    asegurarCampoSeguroVidaObl();
     $('metCliente').addEventListener('change', async (e) => {
       const sel = $('metLegajo');
       const legajos = e.target.value ? await DB.getLegajosPorCliente(e.target.value) : [];
