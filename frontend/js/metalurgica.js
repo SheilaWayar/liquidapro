@@ -1,3 +1,4 @@
+/* VERSION v3 — metalurgica.js (IMGR opcional + seguro de vida obligatorio) */
 /* =========================================================
    metalurgica.js
    MÓDULO INDEPENDIENTE de liquidación METALÚRGICA (UOM).
@@ -522,8 +523,12 @@ const Metalurgica = (() => {
           </div>`);
   }
 
+  const VERSION = 'v3 · IMGR opcional + seguro de vida obligatorio';
+
   function init() {
     asegurarCampoSeguroVidaObl();
+    const sub = document.querySelector('#view-metalurgica .view-header p');
+    if (sub) sub.textContent += ' — ' + VERSION;
     $('metCliente').addEventListener('change', async (e) => {
       const sel = $('metLegajo');
       const legajos = e.target.value ? await DB.getLegajosPorCliente(e.target.value) : [];
