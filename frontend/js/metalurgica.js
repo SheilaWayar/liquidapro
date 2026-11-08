@@ -1,4 +1,4 @@
-/* VERSION v4 — metalurgica.js (IMGR = importe directo + seguro de vida obligatorio) */
+/* VERSION v5 — metalurgica.js (IMGR importe directo + antigüedad con importe manual opcional) */
 /* =========================================================
    metalurgica.js
    MÓDULO INDEPENDIENTE de liquidación METALÚRGICA (UOM).
@@ -96,9 +96,13 @@ const Metalurgica = (() => {
     // Horas x básico por hora
     const remuneracionBase = r2(horas * valorHora);
 
-    // Antigüedad automática: años completos x 1% x remuneración base
+    // Antigüedad: automática (años completos x 1% x remuneración base) o importe cargado a mano.
+    // Si el campo manual tiene algo escrito (incluso 0), se usa ese importe y no el automático.
     const anios = aniosCompletos(d.fechaIngreso, d.fechaLiquidacion);
-    const antiguedad = r2(remuneracionBase * anios * PARAM.antiguedadPctPorAnio / 100);
+    const antiguedadManual = d.antiguedadManual !== undefined && d.antiguedadManual !== null && String(d.antiguedadManual).trim() !== '';
+    const antiguedad = antiguedadManual
+      ? Math.max(0, r2(num(d.antiguedadManual)))
+      : r2(remuneracionBase * anios * PARAM.antiguedadPctPorAnio / 100);
 
     // IMGR = importe cargado tal cual (no se resta nada). Si es 0 o está vacío, no sale en el recibo.
     const imgr = Math.max(0, r2(num(d.imgr)));
@@ -148,7 +152,7 @@ const Metalurgica = (() => {
       fechaRecibo: d.fechaRecibo || '',
       periodoDeposito: d.periodoDeposito || '',
       valorHora, horas, remuneracionBase,
-      anios, antiguedadPct: anios * PARAM.antiguedadPctPorAnio, antiguedad,
+      anios, antiguedadManual, antiguedadPct: antiguedadManual ? null : anios * PARAM.antiguedadPctPorAnio, antiguedad,
       imgrTotal, imgr,
       totalRemunerativo, noRemunerativo, noRemItems,
       descuentos, totalDescuentos, neto,
@@ -225,7 +229,7 @@ const Metalurgica = (() => {
         </thead>
         <tbody>
           <tr><td>Horas trabajadas</td><td class="num">${r.horas} hs</td><td class="num">${fmt(r.remuneracionBase)}</td>${vacio}${vacio}</tr>
-          <tr><td>Antigüedad</td><td class="num">${r.antiguedadPct !== undefined ? r.antiguedadPct : r.anios * PARAM.antiguedadPctPorAnio}%</td><td class="num">${fmt(r.antiguedad)}</td>${vacio}${vacio}</tr>
+          <tr><td>Antigüedad</td><td class="num">${r.antiguedadManual ? '' : (r.antiguedadPct !== undefined && r.antiguedadPct !== null ? r.antiguedadPct : r.anios * PARAM.antiguedadPctPorAnio) + '%'}</td><td class="num">${fmt(r.antiguedad)}</td>${vacio}${vacio}</tr>
           ${r.imgr > 0 ? `<tr><td>I.M.G.R. (Índice Mínimo Global Remunerativo)</td>${vacio}<td class="num">${fmt(r.imgr)}</td>${vacio}${vacio}</tr>` : ''}
           ${filasNoRem(r)}
           ${filasDesc}
@@ -278,10 +282,14 @@ const Metalurgica = (() => {
     const base = r2(num($('metHoras').value) * num($('metValorHora').value));
     const anios = ingreso ? aniosCompletos(ingreso, liq) : 0;
     const pct = anios * PARAM.antiguedadPctPorAnio;
-    const antig = r2(base * pct / 100);
+    const manualTxt = $('metAntigManual') ? $('metAntigManual').value.trim() : '';
+    const antManual = manualTxt !== '';
+    const antig = antManual ? Math.max(0, r2(num(manualTxt))) : r2(base * pct / 100);
 
     let lineaAntig;
-    if (!ingreso) {
+    if (antManual) {
+      lineaAntig = `<strong>Antigüedad:</strong> importe cargado a mano <strong>${fmt(antig)}</strong> (no se usa el cálculo automático)`;
+    } else if (!ingreso) {
       lineaAntig = '⚠️ Este legajo no tiene fecha de ingreso cargada: la antigüedad será $ 0,00. Editá el legajo para cargarla.';
     } else {
       lineaAntig = `<strong>Antigüedad:</strong> ingreso ${fecha(ingreso)} · día de liquidación ${liq ? fecha(liq) : 'hoy (no cargaste fecha de pago)'} → ` +
@@ -338,13 +346,15 @@ const Metalurgica = (() => {
 
       const [cliente, legajo] = await Promise.all([DB.getCliente(clienteId), DB.getLegajo(legajoId)]);
 
-      if (!legajo.fechaIngreso &&
+      const antigManual = $('metAntigManual') ? $('metAntigManual').value.trim() : '';
+      if (!legajo.fechaIngreso && antigManual === '' &&
           !confirm('Este legajo no tiene fecha de ingreso: la antigüedad va a ser $ 0,00. ¿Calcular igual?')) return;
 
       const resultado = calcular({
         valorHora: $('metValorHora').value,
         horas: $('metHoras').value,
         imgr: $('metImgr').value,
+        antiguedadManual: antigManual,
         noRemItems: leerNoRem(),
         lugar: $('metLugar').value,
         fechaRecibo: $('metFechaRecibo').value,
@@ -520,6 +530,16 @@ const Metalurgica = (() => {
           </div>`);
   }
 
+  /** Agrega el campo "Antigüedad — importe manual" (opcional) si el HTML no lo tiene; no hace falta tocar el index.html */
+  function asegurarCampoAntigManual() {
+    if ($('metAntigManual')) return;
+    $('metImgr').parentElement.insertAdjacentHTML('afterend', `
+          <div>
+            <label>Antigüedad — importe manual ($) (opcional)</label>
+            <input type="number" id="metAntigManual" class="input" step="0.01" placeholder="Vacío = cálculo automático">
+          </div>`);
+  }
+
   /** El campo del IMGR ahora es un importe directo: se actualiza la etiqueta aunque el HTML siga con el texto viejo */
   function ajustarEtiquetaImgr() {
     const campo = $('metImgr');
@@ -528,11 +548,12 @@ const Metalurgica = (() => {
     if (etiqueta) etiqueta.textContent = 'IMGR — importe ($)';
   }
 
-  const VERSION = 'v4 · IMGR importe directo';
+  const VERSION = 'v5 · antigüedad con importe manual opcional';
 
   function init() {
     asegurarCampoSeguroVidaObl();
     ajustarEtiquetaImgr();
+    asegurarCampoAntigManual();
     const sub = document.querySelector('#view-metalurgica .view-header p');
     if (sub) sub.textContent += ' — ' + VERSION;
     $('metCliente').addEventListener('change', async (e) => {
@@ -552,12 +573,13 @@ const Metalurgica = (() => {
       const cli = await DB.getCliente($('metCliente').value);
       $('metLugar').value = (cli && cli.provincia) || '';
       $('metListaNoRem').innerHTML = '';
+      $('metAntigManual').value = '';
       actualizarAntiguedadPreview();
       $('metFormCard').style.display = 'block';
       $('metResultadoCard').style.display = 'none';
     });
 
-    ['metHoras', 'metValorHora', 'metFechaPago', 'metImgr'].forEach(id => {
+    ['metHoras', 'metValorHora', 'metFechaPago', 'metImgr', 'metAntigManual'].forEach(id => {
       $(id).addEventListener('input', actualizarAntiguedadPreview);
       $(id).addEventListener('change', actualizarAntiguedadPreview);
     });
