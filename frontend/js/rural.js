@@ -1,3 +1,4 @@
+/* VERSION v2 — rural.js (antigüedad con los 3 modos también para NO permanentes) */
 /* =========================================================
    rural.js
    MÓDULO INDEPENDIENTE de liquidación RURAL.
@@ -12,7 +13,8 @@
        PERMANENTES    -> sin antigüedad (por defecto), automático (años completos
                          desde el ingreso x 1% sobre remuneración + feriados),
                          porcentaje manual o importe manual
-       NO PERMANENTES -> solo importe manual
+       NO PERMANENTES -> los mismos modos que los permanentes
+                         (sin antigüedad, automático, porcentaje manual o importe manual)
        Si la antigüedad es $ 0,00 NO se imprime en el recibo.
    - Total remunerativo = remuneración + antigüedad + feriados
                           + todos los conceptos remunerativos agregados
@@ -132,9 +134,10 @@ const Rural = (() => {
 
     // Antigüedad (por defecto: SIN antigüedad)
     let anios = 0, antiguedadPct = 0, antiguedadImporte = 0, antiguedadDetalle = '';
-    if (d.permanente) {
+    {   // los modos valen para permanentes y no permanentes
       const baseAntig = basicoImporte + totalFeriados;
-      const modo = d.antigModo || 'ninguna';
+      // sin modo indicado (liquidaciones/llamadas viejas): permanente = sin antigüedad; no permanente = importe manual
+      const modo = d.antigModo || (d.permanente ? 'ninguna' : 'importe');
       if (modo === 'importe') {                       // importe manual
         antiguedadImporte = r2(num(d.antigManualImporte));
         antiguedadDetalle = '';
@@ -149,9 +152,6 @@ const Rural = (() => {
         antiguedadDetalle = antiguedadPct + '%';
       }
       // cualquier otro valor (incluido 'ninguna'): sin antigüedad
-    } else {
-      antiguedadImporte = r2(num(d.antigManualImporte));
-      antiguedadDetalle = '';
     }
 
     const remAdicionales = (d.remAdicionales || []).map(x => ({ concepto: x.concepto, importe: r2(num(x.importe)) }));
@@ -439,11 +439,11 @@ const Rural = (() => {
   /* ---- Tipo de trabajador (viene del legajo) ---- */
   function aplicarTipoTrabajadorUI() {
     const perm = esPermanente(legajoActual);
-    $('rurAntigPerm').style.display = perm ? 'block' : 'none';
-    $('rurAntigNoPerm').style.display = perm ? 'none' : 'block';
+    $('rurAntigPerm').style.display = 'block';      // los tres modos valen para ambos tipos de trabajador
+    $('rurAntigNoPerm').style.display = 'none';
     $('rurTipoTrabajadorTexto').innerHTML = perm
       ? '👷 Trabajador <strong>permanente</strong>: por defecto <strong>sin antigüedad</strong>. Si tiene, elegí automático (1% por año), porcentaje manual o importe manual. Si es $ 0,00 no sale en el recibo.'
-      : '👷 Trabajador <strong>no permanente</strong>: la antigüedad se carga solo de forma manual. Si es $ 0,00 no sale en el recibo.';
+      : '👷 Trabajador <strong>no permanente</strong>: por defecto <strong>sin antigüedad</strong>. Si tiene, elegí automático (1% por año), porcentaje manual o importe manual. Si es $ 0,00 no sale en el recibo.';
     aplicarModoAntiguedadPermUI();
   }
 
@@ -457,7 +457,7 @@ const Rural = (() => {
 
   /** Vista previa en vivo de la antigüedad (solo permanentes) */
   function actualizarAntiguedadPreview() {
-    if (!legajoActual || !esPermanente(legajoActual)) return;
+    if (!legajoActual) return;
     const modo = $('rurAntigModoPerm').value;
     if (modo === 'importe') {
       $('rurAntigTexto').innerHTML = `Antigüedad: importe manual <strong>${fmt(num($('rurAntigImportePerm').value))}</strong>`;
@@ -558,7 +558,7 @@ const Rural = (() => {
       const [cliente, legajo] = await Promise.all([DB.getCliente(clienteId), DB.getLegajo(legajoId)]);
       const permanente = esPermanente(legajo);
 
-      const modoAntig = permanente ? $('rurAntigModoPerm').value : 'importe';
+      const modoAntig = $('rurAntigModoPerm').value;
 
       const resultado = calcular({
         tipoRemuneracion: $('rurTipoRem').value,
@@ -571,7 +571,7 @@ const Rural = (() => {
         fechaLiquidacion: fechaPago,            // vacío = fecha de hoy
         antigModo: modoAntig,
         antigPctManual: $('rurAntigPctManual').value,
-        antigManualImporte: permanente ? $('rurAntigImportePerm').value : $('rurAntigManual').value,
+        antigManualImporte: $('rurAntigImportePerm').value,
         lugar: $('rurLugar').value,
         remAdicionales: leerFilasConcepto('rurListaRem'),
         noRemAdicionales: leerFilasConcepto('rurListaNoRem')
@@ -686,8 +686,12 @@ const Rural = (() => {
     }
   }
 
+  const VERSION = 'v2 · antigüedad con 3 modos también para no permanentes';
+
   function init() {
     prepararPantalla();
+    const sub = document.querySelector('#view-rural .view-header p');
+    if (sub) sub.textContent += ' — ' + VERSION;
 
     $('rurCliente').addEventListener('change', async (e) => {
       const sel = $('rurLegajo');
