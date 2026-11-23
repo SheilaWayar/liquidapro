@@ -28,21 +28,14 @@ function initLogin() {
       await Auth.iniciarSesion(email, password);
       // onCambioSesion (más abajo) se encarga de mostrar la app
     } catch (err) {
-      mostrarErrorLogin(err.message || 'No se pudo iniciar sesión.');
+      mostrarErrorLogin(traducirErrorLogin(err));
     }
   });
 
-  btnRegistrarse.addEventListener('click', async () => {
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    if (!email || !password) { mostrarErrorLogin('Completá email y contraseña para registrarte.'); return; }
+  // "Crear cuenta nueva" abre el formulario de registro con datos personales (perfil.js)
+  btnRegistrarse.addEventListener('click', () => {
     mostrarErrorLogin('');
-    try {
-      await Auth.registrarse(email, password);
-      mostrarErrorLogin('Cuenta creada. Revisá tu email si tu proyecto pide confirmación, o iniciá sesión directamente.', true);
-    } catch (err) {
-      mostrarErrorLogin(err.message || 'No se pudo crear la cuenta.');
-    }
+    Perfil.abrirRegistro();
   });
 
   btnCerrarSesion.addEventListener('click', async () => {
@@ -63,6 +56,15 @@ function initLogin() {
   });
 }
 
+/** Traduce los errores de inicio de sesión de Supabase */
+function traducirErrorLogin(err) {
+  const m = String((err && err.message) || '');
+  if (/banned/i.test(m)) return 'Tu cuenta fue dada de baja. Si creés que es un error, comunicate con el administrador.';
+  if (/invalid login credentials/i.test(m)) return 'Correo o contraseña incorrectos.';
+  if (/email not confirmed/i.test(m)) return 'Todavía no confirmaste tu correo.';
+  return m || 'No se pudo iniciar sesión.';
+}
+
 function mostrarErrorLogin(msg, esOk) {
   const el = document.getElementById('loginError');
   el.textContent = msg || '';
@@ -70,13 +72,22 @@ function mostrarErrorLogin(msg, esOk) {
 }
 
 function mostrarLogin() {
+  // Si la persona está cambiando su contraseña (link del mail), no pisamos esa pantalla
+  if (window.LP_RECUPERANDO) { usuarioActualId = null; return; }
   document.getElementById('pantallaLogin').style.display = 'flex';
   document.getElementById('appShell').style.display = 'none';
+  usuarioActualId = null;
+  // que el panel Admin y sus datos no queden visibles para la próxima cuenta que entre
+  if (typeof Admin !== 'undefined') Admin.ocultar();
 }
 
 let appYaInicializada = false;
+let usuarioActualId = null;
 
 function mostrarApp(session) {
+  // Al volver del mail de recuperación, recuperar.js pide la nueva contraseña antes de entrar
+  if (window.LP_RECUPERANDO) return;
+
   document.getElementById('pantallaLogin').style.display = 'none';
   document.getElementById('appShell').style.display = 'flex';
   document.getElementById('emailUsuario').textContent = session.user.email;
@@ -89,6 +100,13 @@ function mostrarApp(session) {
     initLiquidaciones();
     initConfiguracion();
     actualizarDashboard();
+  }
+
+  // Cada vez que entra una cuenta distinta: menú Admin (si es administradora) y pantalla "Completá tus datos"
+  if (session.user.id !== usuarioActualId) {
+    usuarioActualId = session.user.id;
+    if (typeof Admin !== 'undefined') Admin.mostrarSiEsAdmin();
+    if (typeof Perfil !== 'undefined') Perfil.pedirDatosSiFaltan();
   }
 }
 

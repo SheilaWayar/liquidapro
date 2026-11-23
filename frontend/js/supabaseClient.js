@@ -13,8 +13,15 @@ const Auth = {
     return data.user;
   },
 
-  async registrarse(email, password) {
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+  /**
+   * Crea la cuenta. `datos` (opcional) son los datos personales del formulario de registro
+   * (nombre_completo, cuil, fecha_nacimiento, telefono): viajan con el alta y un disparador
+   * de la base los copia a la tabla `perfiles` (ver admin_y_perfiles.sql).
+   */
+  async registrarse(email, password, datos) {
+    const credenciales = { email, password };
+    if (datos) credenciales.options = { data: datos };
+    const { data, error } = await supabaseClient.auth.signUp(credenciales);
     if (error) throw error;
     return data.user;
   },

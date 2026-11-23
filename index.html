@@ -23,7 +23,7 @@
 
 <!-- ===================== LOGIN ===================== -->
 <div class="pantalla-login" id="pantallaLogin">
-  <div class="login-card">
+  <div class="login-card" id="cardLogin">
     <div class="brand-logo login-logo">$</div>
     <h1>LiquidaPro</h1>
     <p class="login-sub">Liquidación de sueldos en la nube — Argentina 2026</p>
@@ -36,7 +36,62 @@
       <button type="submit" class="btn-primary" style="width:100%; margin-top:6px;">Iniciar sesión</button>
     </form>
     <button class="btn-secondary" id="btnRegistrarse" style="width:100%; margin-top:10px;">Crear cuenta nueva</button>
+    <button type="button" id="btnOlvide" style="background:none;border:none;color:#1f6b45;cursor:pointer;width:100%;margin-top:10px;text-decoration:underline;">¿Olvidaste tu contraseña?</button>
     <p class="login-nota">Tus datos quedan aislados por cuenta: cada usuario solo ve sus propios clientes y legajos.</p>
+  </div>
+
+  <!-- Registro de cuenta nueva (con datos personales). Lo maneja perfil.js -->
+  <div class="login-card" id="cardRegistro" style="display:none; max-height:96vh; overflow-y:auto;">
+    <div class="brand-logo login-logo">$</div>
+    <h1>Crear cuenta</h1>
+    <p class="login-sub">Completá tus datos para registrarte</p>
+    <form id="formRegistro" novalidate>
+      <label>Nombre y apellido completos</label>
+      <input class="input" type="text" id="regNombre" autocomplete="name">
+      <label>C.U.I.L.</label>
+      <input class="input" type="text" id="regCuil" inputmode="numeric" placeholder="20-12345678-9">
+      <label>Fecha de nacimiento</label>
+      <input class="input" type="date" id="regNacimiento" autocomplete="bday">
+      <label>Correo electrónico</label>
+      <input class="input" type="email" id="regEmail" autocomplete="email">
+      <label>Teléfono (opcional)</label>
+      <input class="input" type="tel" id="regTelefono" placeholder="387 1234567" autocomplete="tel">
+      <label>Contraseña (mínimo 8 caracteres)</label>
+      <input class="input" type="password" id="regPassword" autocomplete="new-password">
+      <label>Repetir contraseña</label>
+      <input class="input" type="password" id="regPassword2" autocomplete="new-password">
+      <label style="display:flex; gap:8px; align-items:flex-start; font-weight:400; margin-top:10px;">
+        <input type="checkbox" id="regAcepto" style="margin-top:3px; width:auto;">
+        <span>Acepto que LiquidaPro use estos datos para administrar mi cuenta. Solo los ven los administradores del sistema (Ley 25.326 de protección de datos personales).</span>
+      </label>
+      <p class="login-error" id="regError"></p>
+      <button type="submit" class="btn-primary" style="width:100%; margin-top:6px;">Crear cuenta</button>
+    </form>
+    <button type="button" class="btn-secondary" id="btnVolverLogin" style="width:100%; margin-top:10px;">Ya tengo cuenta: volver</button>
+  </div>
+
+  <!-- Pedir mail de recuperación. Lo maneja recuperar.js -->
+  <div class="login-card" id="cardRecuperar" style="display:none">
+    <div class="brand-logo login-logo">$</div>
+    <h1>Recuperar contraseña</h1>
+    <p class="login-sub">Te enviamos un enlace por correo para crear una nueva</p>
+    <label>Email</label>
+    <input class="input" type="email" id="recEmail" autocomplete="email">
+    <p class="login-error" id="recMsg"></p>
+    <button type="button" class="btn-primary" id="btnEnviarRec" style="width:100%; margin-top:6px;">Enviar enlace</button>
+    <button type="button" class="btn-secondary" id="btnRecVolver" style="width:100%; margin-top:10px;">Volver</button>
+  </div>
+
+  <!-- Elegir nueva contraseña (al volver desde el mail). Lo maneja recuperar.js -->
+  <div class="login-card" id="cardNuevaPass" style="display:none">
+    <div class="brand-logo login-logo">$</div>
+    <h1>Nueva contraseña</h1>
+    <label>Nueva contraseña (mínimo 8 caracteres)</label>
+    <input class="input" type="password" id="newPass1" autocomplete="new-password">
+    <label>Repetir contraseña</label>
+    <input class="input" type="password" id="newPass2" autocomplete="new-password">
+    <p class="login-error" id="newPassMsg"></p>
+    <button type="button" class="btn-primary" id="btnGuardarNuevaPass" style="width:100%; margin-top:6px;">Guardar contraseña</button>
   </div>
 </div>
 
@@ -59,6 +114,7 @@
       <button class="menu-item" data-view="rural">🌾 Rural</button>
       <button class="menu-item" data-view="gastronomico">🍽️ Gastronómico</button>
       <button class="menu-item" data-view="configuracion">⚙️ Configuración</button>
+      <button class="menu-item" data-view="admin" id="menuAdmin" style="display:none">🛡️ Admin</button>
     </nav>
     <div class="sidebar-footer">
       <p id="emailUsuario" style="font-weight:600; word-break:break-all;"></p>
@@ -657,6 +713,31 @@
       </div>
     </section>
 
+    <!-- ===================== ADMIN (módulo independiente, solo administradores) ===================== -->
+    <section id="view-admin" class="view">
+      <header class="view-header">
+        <h2>Panel de administración</h2>
+        <p>Cuentas registradas en LiquidaPro — información confidencial, solo visible para administradores</p>
+      </header>
+
+      <div class="card">
+        <div class="filtros">
+          <input type="text" id="adminBuscar" class="input" placeholder="Buscar por nombre, C.U.I.L., correo o teléfono...">
+          <button class="btn-secondary" id="btnAdminActualizar">↻ Actualizar</button>
+        </div>
+        <p class="ayuda-texto" id="adminResumen"></p>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr><th>Nombre completo</th><th>C.U.I.L.</th><th>Nacimiento</th><th>Correo</th><th>Teléfono</th><th>Alta</th><th>Último ingreso</th><th>Correo confirmado</th><th>Estado</th><th>Acciones</th></tr>
+            </thead>
+            <tbody id="adminTabla"></tbody>
+          </table>
+        </div>
+        <p class="empty-msg" id="adminVacio" style="display:none">No hay cuentas para mostrar.</p>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -673,5 +754,8 @@
 <script src="frontend/js/metalurgica.js"></script>
 <script src="frontend/js/rural.js"></script>
 <script src="frontend/js/gastronomico.js"></script>
+<script src="frontend/js/perfil.js"></script>
+<script src="frontend/js/recuperar.js"></script>
+<script src="frontend/js/admin.js"></script>
 </body>
 </html>
