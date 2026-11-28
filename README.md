@@ -14,7 +14,6 @@ LiquidaPro automatiza el cálculo de la liquidación de sueldos para evitar erro
 - Liquidación por rubro especializado: gastronómico, metalúrgico y rural.
 - Carga de datos y porcentajes según cada caso.
 - Almacenamiento de la información en una base de datos en Supabase.
-- [COMPLETAR: otras funciones reales, por ejemplo recibos en PDF, historial de liquidaciones o inicio de sesión]
 
 ## Tecnologías
 
@@ -63,8 +62,11 @@ git clone https://github.com/SheilaWayar/liquidapro.git
 4. La conexión con Supabase se configura en `frontend/js/config.js` y `frontend/js/supabaseClient.js`, con la URL del proyecto y la clave pública (anon key).
 
 ## Mi rol
+- Desarrollo completo de la app, de principio a fin
+- Frontend: diseño de la interfaz en HTML, CSS y JavaScript
+- Backend: lógica de cálculo y manejo de datos de liquidaciones
+- Deploy y puesta en producción del proyecto
 
-[COMPLETAR: qué parte hice yo, por ejemplo el diseño de la interfaz, la lógica de cálculo de cada rubro, la base de datos en Supabase y el despliegue en Vercel]
 
 ## Qué aprendí
 
